@@ -43,7 +43,7 @@ const state = {
   trafficSpeed: 1,
   fps: {
     frames: 0,
-    elapsed: 0,
+    lastUpdate: performance.now(),
   },
   snow: null,
   leaves: null,
@@ -731,15 +731,16 @@ function updateTraffic(delta) {
   state.cars.forEach((car) => updateCarPosition(car, 0));
 }
 
-function updateFps(delta) {
+function countFrame() {
   state.fps.frames += 1;
-  state.fps.elapsed += delta;
+}
 
-  if (state.fps.elapsed >= 0.35) {
-    fpsOverlay.textContent = `FPS ${Math.round(state.fps.frames / state.fps.elapsed)}`;
-    state.fps.frames = 0;
-    state.fps.elapsed = 0;
-  }
+function refreshFpsOverlay() {
+  const now = performance.now();
+  const elapsed = Math.max((now - state.fps.lastUpdate) / 1000, 0.001);
+  fpsOverlay.textContent = `FPS ${Math.round(state.fps.frames / elapsed)}`;
+  state.fps.frames = 0;
+  state.fps.lastUpdate = now;
 }
 
 function updateEnvironment(delta) {
@@ -816,7 +817,7 @@ function onResize() {
 
 function animate() {
   const delta = Math.min(clock.getDelta(), 0.06);
-  updateFps(delta);
+  countFrame();
   updateTraffic(delta);
   updateEnvironment(delta);
   updateCamera();
@@ -831,4 +832,5 @@ createTraffic();
 applySetting("summer");
 bindControls();
 window.addEventListener("resize", onResize);
+setInterval(refreshFpsOverlay, 500);
 animate();
