@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rollercoaster Theme Park</title>
-    <link rel="stylesheet" href="./styles.css?v=3" />
+    <title>Golden Bridge 3D Traffic</title>
+    <link rel="stylesheet" href="./styles.css?v=1" />
     <script type="importmap">
       {
         "imports": {
@@ -15,57 +15,51 @@
     </script>
   </head>
   <body>
-    <canvas id="park"></canvas>
+    <canvas id="scene"></canvas>
 
-    <header class="hud hud-top">
+    <header class="hud topbar">
       <div>
-        <h1>Rollercoaster Park</h1>
-        <p>3D theme park simulation</p>
+        <h1>Golden Bridge</h1>
+        <p>San Francisco 3D traffic model</p>
       </div>
-      <div class="status" id="status">Normal view</div>
+      <div class="status" id="status">Normal POV</div>
     </header>
 
-    <aside class="hud controls" aria-label="Simulation controls">
+    <aside class="hud panel" aria-label="Scene controls">
       <section>
-        <h2>Setting</h2>
-        <div class="button-grid" id="settingControls">
-          <button data-setting="day" class="active">Day</button>
+        <h2>POV</h2>
+        <div class="control-grid two" id="povControls">
+          <button class="active" data-pov="normal">Normal</button>
+          <button data-pov="driver">Driver</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>Settings</h2>
+        <div class="control-grid" id="settingControls">
+          <button class="active" data-setting="summer">Summer</button>
           <button data-setting="winter">Winter</button>
-          <button data-setting="summer">Summer</button>
           <button data-setting="fall">Fall</button>
           <button data-setting="night">Night</button>
         </div>
       </section>
-
-      <section>
-        <h2>POV</h2>
-        <div class="button-grid" id="povControls">
-          <button data-pov="normal" class="active">Normal</button>
-          <button data-pov="coaster">Coaster</button>
-          <button data-pov="ferris">Ferris</button>
-          <button data-pov="bumper">Bumper</button>
-        </div>
-      </section>
-
-      <section>
-        <div class="control-row">
-          <h2>Speed</h2>
-          <span id="speedValue">1.0x</span>
-        </div>
-        <input
-          id="speedSlider"
-          type="range"
-          min="0"
-          max="3"
-          step="0.1"
-          value="1"
-          aria-label="Simulation speed"
-        />
-      </section>
     </aside>
 
-    <div class="hint"><span id="fpsLabel">FPS: --</span> Drag to orbit. Scroll to zoom. Arrow keys drive.</div>
+    <div class="hint" id="hint">Drag to move. Scroll to zoom.</div>
 
-    <script type="module" src="./src/main.js?v=3"></script>
+    <div class="driver-cockpit" id="driverCockpit" aria-hidden="true">
+      <div class="windshield"></div>
+      <div class="dash">
+        <div class="gauge"></div>
+        <div class="wheel">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="gauge right"></div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.js?v=1"></script>
   </body>
 </html>

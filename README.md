@@ -1,9 +1,7 @@
-# Rollercoaster Theme Park
+# Golden Bridge
 
-A GitHub Pages 3D theme park simulation with a moving roller coaster,
-ferris wheel, drivable bumper cars, seasonal environments, and ride POV
-cameras.
+A static Three.js Golden Gate Bridge style traffic scene for GitHub Pages.
 
-Open it at:
+Open the published site at:
 
-https://huyckkid14.github.io/rollercoaster/
+https://huyckkid14.github.io/goldenbridge/
