@@ -46,9 +46,25 @@
           <button data-pov="boat">Boat</button>
         </div>
       </section>
+
+      <section>
+        <div class="control-row">
+          <h2>Speed</h2>
+          <span id="speedValue">1.0x</span>
+        </div>
+        <input
+          id="speedSlider"
+          type="range"
+          min="0"
+          max="3"
+          step="0.1"
+          value="1"
+          aria-label="Simulation speed"
+        />
+      </section>
     </aside>
 
-    <div class="hint">Drag to orbit. Scroll to zoom.</div>
+    <div class="hint"><span id="fpsLabel">FPS: --</span> Drag to orbit. Scroll to zoom.</div>
 
     <script type="module" src="./src/main.js"></script>
   </body>

@@ -3,6 +3,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 const canvas = document.querySelector("#park");
 const statusEl = document.querySelector("#status");
+const fpsLabel = document.querySelector("#fpsLabel");
+const speedSlider = document.querySelector("#speedSlider");
+const speedValue = document.querySelector("#speedValue");
 const scene = new THREE.Scene();
 const clock = new THREE.Clock();
 
@@ -33,6 +36,11 @@ scene.add(root);
 const world = {
   setting: "day",
   pov: "normal",
+  speed: 1,
+  fps: {
+    frames: 0,
+    elapsed: 0,
+  },
   coasterProgress: 0,
   boatProgress: 0,
   ferrisAngle: 0,
@@ -485,7 +493,7 @@ function updateFerris(delta) {
 
 function updateEnvironment(delta) {
   const time = clock.elapsedTime;
-  world.water.material.color.offsetHSL(0, 0, Math.sin(time * 1.8) * 0.0005);
+  world.water.material.color.offsetHSL(0, 0, Math.sin(time * 1.8 * Math.max(world.speed, 0.2)) * 0.0005);
 
   if (world.carousel) {
     world.carousel.rotation.y += delta * 0.45;
@@ -647,6 +655,22 @@ function bindControls() {
     world.pov = button.dataset.pov;
     statusEl.textContent = `${button.textContent} view`;
   });
+
+  speedSlider.addEventListener("input", () => {
+    world.speed = Number(speedSlider.value);
+    speedValue.textContent = `${world.speed.toFixed(1)}x`;
+  });
+}
+
+function updateFps(rawDelta) {
+  world.fps.frames += 1;
+  world.fps.elapsed += rawDelta;
+
+  if (world.fps.elapsed >= 0.35) {
+    fpsLabel.textContent = `FPS: ${Math.round(world.fps.frames / world.fps.elapsed)}`;
+    world.fps.frames = 0;
+    world.fps.elapsed = 0;
+  }
 }
 
 function onResize() {
@@ -656,7 +680,9 @@ function onResize() {
 }
 
 function animate() {
-  const delta = Math.min(clock.getDelta(), 0.04);
+  const rawDelta = Math.min(clock.getDelta(), 0.08);
+  const delta = Math.min(rawDelta * world.speed, 0.12);
+  updateFps(rawDelta);
   updateTrain(delta);
   updateBoat(delta);
   updateFerris(delta);
