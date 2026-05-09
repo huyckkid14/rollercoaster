@@ -521,7 +521,7 @@ function updateCarPosition(car, delta) {
   const data = car.userData;
   data.progress = (data.progress + delta * data.speed * state.trafficSpeed * data.dir) % 1;
   const laneZ = data.z;
-  const point = trafficPoint(data.dir === 1 ? data.progress : 1 - data.progress, laneZ);
+  const point = trafficPoint(data.progress, laneZ);
   car.position.set(point.x, point.y, point.z);
   car.rotation.y = data.dir === 1 ? point.heading : point.heading + Math.PI;
 }
