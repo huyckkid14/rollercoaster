@@ -140,6 +140,23 @@ p,
   backdrop-filter: blur(16px);
 }
 
+.fps-overlay {
+  position: fixed;
+  top: 6.8rem;
+  right: 1rem;
+  z-index: 3;
+  min-width: 5.7rem;
+  padding: 0.48rem 0.62rem;
+  border-radius: 6px;
+  color: #f8fbff;
+  background: rgba(7, 15, 23, 0.64);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-align: center;
+  backdrop-filter: blur(16px);
+}
+
 .driver-cockpit {
   position: fixed;
   inset: 0;
@@ -242,6 +259,12 @@ p,
   .status,
   .hint {
     display: none;
+  }
+
+  .fps-overlay {
+    top: auto;
+    right: 1rem;
+    bottom: 12.8rem;
   }
 
   .control-grid {

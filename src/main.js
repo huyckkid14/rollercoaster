@@ -5,6 +5,7 @@ const canvas = document.querySelector("#scene");
 const statusEl = document.querySelector("#status");
 const hintEl = document.querySelector("#hint");
 const cockpitEl = document.querySelector("#driverCockpit");
+const fpsOverlay = document.querySelector("#fpsOverlay");
 
 const scene = new THREE.Scene();
 const clock = new THREE.Clock();
@@ -38,7 +39,12 @@ const state = {
   pov: "normal",
   setting: "summer",
   cars: [],
+  lanes: [],
   trafficSpeed: 1,
+  fps: {
+    frames: 0,
+    elapsed: 0,
+  },
   snow: null,
   leaves: null,
   fogBank: [],
@@ -77,6 +83,12 @@ const mats = {
     roughness: 0.45,
     emissive: 0x1b1306,
     emissiveIntensity: 0.08,
+  }),
+  divider: new THREE.MeshStandardMaterial({
+    color: 0xf28b24,
+    roughness: 0.38,
+    emissive: 0x6e2c08,
+    emissiveIntensity: 0.16,
   }),
   water: new THREE.MeshStandardMaterial({
     color: 0x1d6d8d,
@@ -263,7 +275,7 @@ function createBridge() {
     bridge.add(cross);
   }
 
-  for (let z of [-5.8, 5.8]) {
+  for (let z of [-7.4, 7.4]) {
     for (let x = -170; x <= 170; x += 17) {
       const lane = makeMesh(
         new THREE.BoxGeometry(8.5, 0.08, 0.42),
@@ -275,6 +287,15 @@ function createBridge() {
       bridge.add(lane);
     }
   }
+
+  const divider = makeMesh(
+    new THREE.BoxGeometry(deckLength - 18, 0.1, 0.7),
+    mats.divider,
+    new THREE.Vector3(0, deckY + 2.52, 0),
+    false,
+    false,
+  );
+  bridge.add(divider);
 
   [-92, 92].forEach((x) => createTower(bridge, x, deckY));
   createSuspension(bridge, deckY);
@@ -371,13 +392,14 @@ function createBridgeLights(parent, deckY) {
 function createTraffic() {
   const colors = [0xc73b2a, 0x1c78c0, 0xf0c84b, 0xf5f1e8, 0x111315, 0x2e9b63];
   const laneData = [
-    { z: -10, dir: 1, offset: 0 },
-    { z: -3.5, dir: 1, offset: 0.18 },
-    { z: 3.5, dir: -1, offset: 0.05 },
-    { z: 10, dir: -1, offset: 0.23 },
+    { z: -11, dir: 1, offset: 0, speed: 0.045 },
+    { z: -4.5, dir: 1, offset: 0.5, speed: 0.038 },
+    { z: 4.5, dir: -1, offset: 0.08, speed: 0.041 },
+    { z: 11, dir: -1, offset: 0.58, speed: 0.047 },
   ];
 
   laneData.forEach((lane, laneIndex) => {
+    const laneCars = [];
     for (let i = 0; i < 9; i += 1) {
       const car = createCar(colors[(i + laneIndex) % colors.length], i % 5 === 0);
       const progress = (i / 9 + lane.offset) % 1;
@@ -386,13 +408,20 @@ function createTraffic() {
         progress,
         dir: lane.dir,
         z: lane.z,
-        speed: THREE.MathUtils.randFloat(0.035, 0.058),
+        speed: lane.speed,
         isDriver: false,
       };
       updateCarPosition(car, 0);
       state.cars.push(car);
+      laneCars.push(car);
       root.add(car);
     }
+    state.lanes.push({
+      cars: laneCars,
+      dir: lane.dir,
+      speed: lane.speed,
+      minGap: 1 / laneCars.length - 0.016,
+    });
   });
 
   state.driverCar = state.cars[5];
@@ -495,6 +524,27 @@ function updateCarPosition(car, delta) {
   const point = trafficPoint(data.dir === 1 ? data.progress : 1 - data.progress, laneZ);
   car.position.set(point.x, point.y, point.z);
   car.rotation.y = data.dir === 1 ? point.heading : point.heading + Math.PI;
+}
+
+function enforceLaneSpacing(lane) {
+  const cars = lane.cars
+    .map((car) => ({ car, progress: ((car.userData.progress % 1) + 1) % 1 }))
+    .sort((a, b) => a.progress - b.progress);
+
+  for (let i = 0; i < cars.length; i += 1) {
+    const current = cars[i];
+    const next = cars[(i + 1) % cars.length];
+    const nextProgress = next.progress + (i === cars.length - 1 ? 1 : 0);
+    const gap = nextProgress - current.progress;
+
+    if (gap < lane.minGap) {
+      const correction = (lane.minGap - gap) * 0.5;
+      current.progress = (current.progress - correction + 1) % 1;
+      next.progress = (next.progress + correction) % 1;
+      current.car.userData.progress = current.progress;
+      next.car.userData.progress = next.progress;
+    }
+  }
 }
 
 function createTrees() {
@@ -673,7 +723,23 @@ function applySetting(setting) {
 }
 
 function updateTraffic(delta) {
-  state.cars.forEach((car) => updateCarPosition(car, delta));
+  state.cars.forEach((car) => {
+    const data = car.userData;
+    data.progress = (data.progress + delta * data.speed * state.trafficSpeed * data.dir) % 1;
+  });
+  state.lanes.forEach(enforceLaneSpacing);
+  state.cars.forEach((car) => updateCarPosition(car, 0));
+}
+
+function updateFps(delta) {
+  state.fps.frames += 1;
+  state.fps.elapsed += delta;
+
+  if (state.fps.elapsed >= 0.35) {
+    fpsOverlay.textContent = `FPS ${Math.round(state.fps.frames / state.fps.elapsed)}`;
+    state.fps.frames = 0;
+    state.fps.elapsed = 0;
+  }
 }
 
 function updateEnvironment(delta) {
@@ -750,6 +816,7 @@ function onResize() {
 
 function animate() {
   const delta = Math.min(clock.getDelta(), 0.06);
+  updateFps(delta);
   updateTraffic(delta);
   updateEnvironment(delta);
   updateCamera();
