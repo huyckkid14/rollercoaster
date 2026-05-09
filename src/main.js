@@ -42,8 +42,20 @@ const world = {
     elapsed: 0,
   },
   coasterProgress: 0,
-  boatProgress: 0,
   ferrisAngle: 0,
+  keys: {
+    ArrowUp: false,
+    ArrowDown: false,
+    ArrowLeft: false,
+    ArrowRight: false,
+  },
+  bumperArena: {
+    center: new THREE.Vector3(18, 2.15, -22),
+    width: 38,
+    depth: 28,
+    radius: 2.55,
+  },
+  bumperCars: [],
   trees: [],
   lamps: [],
   snow: null,
@@ -56,7 +68,7 @@ const world = {
   grass: null,
   water: null,
   coasterTrain: null,
-  boat: null,
+  playerCar: null,
   ferrisWheel: null,
   ferrisCabins: [],
 };
@@ -210,21 +222,6 @@ function createCoasterCurve() {
 }
 
 const coasterCurve = createCoasterCurve();
-const boatCurve = new THREE.CatmullRomCurve3(
-  [
-    new THREE.Vector3(-4, 2.3, -45),
-    new THREE.Vector3(7, 2.3, -22),
-    new THREE.Vector3(0, 2.3, 3),
-    new THREE.Vector3(10, 2.3, 27),
-    new THREE.Vector3(28, 2.3, 45),
-    new THREE.Vector3(32, 2.3, 12),
-    new THREE.Vector3(18, 2.3, -18),
-    new THREE.Vector3(-4, 2.3, -45),
-  ],
-  true,
-  "catmullrom",
-  0.38,
-);
 
 function createCoaster() {
   const railMaterial = materials.blueSteel;
@@ -336,32 +333,98 @@ function createFerrisWheel() {
   root.add(wheel);
 }
 
-function createBoatRide() {
-  const canal = new THREE.Mesh(
-    new THREE.TubeGeometry(boatCurve, 160, 3.6, 18, true),
-    materials.water,
+function createBumperCars() {
+  const { center, width, depth } = world.bumperArena;
+  const arena = new THREE.Group();
+  arena.position.copy(center);
+
+  const floor = mesh(
+    new THREE.BoxGeometry(width, 0.65, depth),
+    new THREE.MeshStandardMaterial({ color: 0x596b78, roughness: 0.42, metalness: 0.08 }),
+    new THREE.Vector3(0, -0.2, 0),
+    false,
+    true,
   );
-  canal.scale.y = 0.05;
-  canal.position.y = 0.3;
-  root.add(canal);
+  arena.add(floor);
 
-  world.boat = new THREE.Group();
-  const hull = mesh(new THREE.BoxGeometry(7.2, 1.4, 3.2), materials.wood, new THREE.Vector3(0, 0, 0));
-  const bow = mesh(new THREE.ConeGeometry(1.8, 2.5, 4), materials.wood, new THREE.Vector3(3.9, 0, 0));
-  bow.rotation.z = -Math.PI / 2;
-  const seats = mesh(new THREE.BoxGeometry(4.5, 0.55, 2.2), materials.cream, new THREE.Vector3(-0.8, 0.8, 0));
-  world.boat.add(hull, bow, seats);
-  root.add(world.boat);
-
-  const dock = new THREE.Group();
-  dock.add(mesh(new THREE.BoxGeometry(18, 1, 7), materials.wood, new THREE.Vector3(0, 0, 0)));
-  for (let i = -7; i <= 7; i += 3.5) {
-    dock.add(mesh(new THREE.CylinderGeometry(0.22, 0.22, 4, 8), materials.wood, new THREE.Vector3(i, -2.2, -3.1)));
-    dock.add(mesh(new THREE.CylinderGeometry(0.22, 0.22, 4, 8), materials.wood, new THREE.Vector3(i, -2.2, 3.1)));
+  for (let i = -16; i <= 16; i += 4) {
+    arena.add(mesh(new THREE.BoxGeometry(0.08, 0.05, depth - 2), materials.steel, new THREE.Vector3(i, 0.16, 0), false, true));
   }
-  dock.position.set(-5, 2.2, -48);
-  dock.rotation.y = 0.3;
-  root.add(dock);
+  for (let i = -12; i <= 12; i += 4) {
+    arena.add(mesh(new THREE.BoxGeometry(width - 2, 0.05, 0.08), materials.steel, new THREE.Vector3(0, 0.18, i), false, true));
+  }
+
+  const railMaterial = new THREE.MeshStandardMaterial({ color: 0xf2cb37, roughness: 0.35 });
+  [
+    [0, 1.1, -depth / 2, width, 1.7, 0.8],
+    [0, 1.1, depth / 2, width, 1.7, 0.8],
+    [-width / 2, 1.1, 0, 0.8, 1.7, depth],
+    [width / 2, 1.1, 0, 0.8, 1.7, depth],
+  ].forEach(([x, y, z, sx, sy, sz]) => {
+    arena.add(mesh(new THREE.BoxGeometry(sx, sy, sz), railMaterial, new THREE.Vector3(x, y, z), true, true));
+  });
+
+  const roof = mesh(
+    new THREE.CylinderGeometry(3, 3, 0.65, 24),
+    materials.red,
+    new THREE.Vector3(0, 10.8, 0),
+  );
+  arena.add(mesh(new THREE.CylinderGeometry(0.28, 0.28, 10, 12), materials.steel, new THREE.Vector3(0, 5.5, 0)));
+  arena.add(roof);
+
+  root.add(arena);
+
+  const carSpecs = [
+    { x: 8, z: -4, color: materials.blueSteel, player: true, heading: 0.4 },
+    { x: -8, z: -5, color: materials.red, heading: 2.4 },
+    { x: 0, z: 7, color: materials.yellow, heading: -1.1 },
+    { x: 12, z: 7, color: materials.cream, heading: 3.3 },
+    { x: -13, z: 6, color: materials.glass, heading: 0.2 },
+    { x: -2, z: -10, color: materials.red, heading: -2.4 },
+  ];
+
+  carSpecs.forEach((spec, index) => {
+    const car = createBumperCar(spec.color, spec.player);
+    car.group.position.set(center.x + spec.x, center.y + 0.6, center.z + spec.z);
+    car.heading = spec.heading;
+    car.group.rotation.y = spec.heading;
+    car.aiTimer = index * 0.7;
+    car.targetHeading = spec.heading;
+    world.bumperCars.push(car);
+    root.add(car.group);
+    if (spec.player) {
+      world.playerCar = car;
+    }
+  });
+}
+
+function createBumperCar(bodyMaterial, isPlayer = false) {
+  const group = new THREE.Group();
+  const base = mesh(new THREE.CylinderGeometry(2.35, 2.55, 0.8, 28), materials.black, new THREE.Vector3(0, 0.35, 0));
+  const body = mesh(new THREE.BoxGeometry(3.5, 1, 2.8), bodyMaterial, new THREE.Vector3(0, 1.05, 0));
+  const seat = mesh(new THREE.BoxGeometry(1.4, 0.75, 1.2), materials.black, new THREE.Vector3(-0.45, 1.75, 0));
+  const nose = mesh(new THREE.ConeGeometry(0.85, 1.4, 16), materials.cream, new THREE.Vector3(0, 1.08, 1.9));
+  const pole = mesh(new THREE.CylinderGeometry(0.07, 0.07, 5.4, 8), materials.steel, new THREE.Vector3(0.95, 3.35, -0.65));
+  const flag = mesh(new THREE.BoxGeometry(1, 0.55, 0.08), isPlayer ? materials.yellow : materials.red, new THREE.Vector3(1.42, 5.95, -0.65));
+  nose.rotation.x = Math.PI / 2;
+  group.add(base, body, seat, nose, pole, flag);
+
+  for (let x = -1.15; x <= 1.15; x += 2.3) {
+    for (let z = -0.95; z <= 0.95; z += 1.9) {
+      const wheel = mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.32, 14), materials.black, new THREE.Vector3(x, 0.2, z));
+      wheel.rotation.z = Math.PI / 2;
+      group.add(wheel);
+    }
+  }
+
+  return {
+    group,
+    velocity: new THREE.Vector2(),
+    heading: 0,
+    targetHeading: 0,
+    aiTimer: 0,
+    isPlayer,
+  };
 }
 
 function createParkBuildings() {
@@ -471,13 +534,86 @@ function updateTrain(delta) {
   world.coasterTrain.lookAt(point.clone().add(tangent));
 }
 
-function updateBoat(delta) {
-  world.boatProgress = (world.boatProgress + delta * 0.032) % 1;
-  const point = boatCurve.getPointAt(world.boatProgress);
-  const tangent = boatCurve.getTangentAt(world.boatProgress);
-  world.boat.position.copy(point);
-  world.boat.position.y += Math.sin(clock.elapsedTime * 2.4) * 0.15;
-  world.boat.lookAt(point.clone().add(tangent));
+function updateBumperCars(delta) {
+  const { center, width, depth, radius } = world.bumperArena;
+  const left = center.x - width / 2 + radius;
+  const right = center.x + width / 2 - radius;
+  const top = center.z - depth / 2 + radius;
+  const bottom = center.z + depth / 2 - radius;
+
+  world.bumperCars.forEach((car) => {
+    if (car.isPlayer) {
+      const turn = Number(world.keys.ArrowLeft) - Number(world.keys.ArrowRight);
+      const drive = Number(world.keys.ArrowUp) - Number(world.keys.ArrowDown);
+      car.heading += turn * delta * 2.8;
+      const force = drive * delta * 28;
+      car.velocity.x += Math.sin(car.heading) * force;
+      car.velocity.y += Math.cos(car.heading) * force;
+    } else {
+      car.aiTimer -= delta;
+      if (car.aiTimer <= 0) {
+        car.aiTimer = THREE.MathUtils.randFloat(0.9, 2.2);
+        car.targetHeading += THREE.MathUtils.randFloat(-1.25, 1.25);
+      }
+      car.heading = THREE.MathUtils.lerp(car.heading, car.targetHeading, delta * 1.2);
+      car.velocity.x += Math.sin(car.heading) * delta * 10.5;
+      car.velocity.y += Math.cos(car.heading) * delta * 10.5;
+    }
+
+    car.velocity.multiplyScalar(Math.max(0, 1 - delta * 1.55));
+    car.velocity.clampLength(0, car.isPlayer ? 16 : 9.5);
+    car.group.position.x += car.velocity.x * delta;
+    car.group.position.z += car.velocity.y * delta;
+
+    if (car.group.position.x < left || car.group.position.x > right) {
+      car.group.position.x = THREE.MathUtils.clamp(car.group.position.x, left, right);
+      car.velocity.x *= -0.72;
+      car.targetHeading = Math.PI - car.heading;
+    }
+    if (car.group.position.z < top || car.group.position.z > bottom) {
+      car.group.position.z = THREE.MathUtils.clamp(car.group.position.z, top, bottom);
+      car.velocity.y *= -0.72;
+      car.targetHeading = -car.heading;
+    }
+  });
+
+  for (let i = 0; i < world.bumperCars.length; i += 1) {
+    for (let j = i + 1; j < world.bumperCars.length; j += 1) {
+      resolveBumperCollision(world.bumperCars[i], world.bumperCars[j], radius * 1.75);
+    }
+  }
+
+  world.bumperCars.forEach((car) => {
+    if (car.velocity.lengthSq() > 0.12) {
+      car.heading = Math.atan2(car.velocity.x, car.velocity.y);
+    }
+    car.group.rotation.y = car.heading;
+    car.group.rotation.z = THREE.MathUtils.clamp(-car.velocity.x * 0.018, -0.12, 0.12);
+    car.group.rotation.x = THREE.MathUtils.clamp(car.velocity.y * 0.018, -0.12, 0.12);
+  });
+}
+
+function resolveBumperCollision(a, b, minDistance) {
+  const dx = b.group.position.x - a.group.position.x;
+  const dz = b.group.position.z - a.group.position.z;
+  const distance = Math.hypot(dx, dz) || 0.001;
+  if (distance >= minDistance) return;
+
+  const nx = dx / distance;
+  const nz = dz / distance;
+  const overlap = minDistance - distance;
+  a.group.position.x -= nx * overlap * 0.5;
+  a.group.position.z -= nz * overlap * 0.5;
+  b.group.position.x += nx * overlap * 0.5;
+  b.group.position.z += nz * overlap * 0.5;
+
+  const av = a.velocity.x * nx + a.velocity.y * nz;
+  const bv = b.velocity.x * nx + b.velocity.y * nz;
+  const impulse = (bv - av) * 0.92;
+  a.velocity.x += impulse * nx;
+  a.velocity.y += impulse * nz;
+  b.velocity.x -= impulse * nx;
+  b.velocity.y -= impulse * nz;
 }
 
 function updateFerris(delta) {
@@ -630,11 +766,11 @@ function updateCamera() {
     camera.lookAt(new THREE.Vector3(10, 15, -18));
   }
 
-  if (world.pov === "boat") {
-    const point = boatCurve.getPointAt(world.boatProgress);
-    const tangent = boatCurve.getTangentAt(world.boatProgress);
-    camera.position.copy(point).add(new THREE.Vector3(0, 3.1, 0));
-    camera.lookAt(point.clone().add(tangent.multiplyScalar(10)).add(new THREE.Vector3(0, 0.8, 0)));
+  if (world.pov === "bumper") {
+    const car = world.playerCar;
+    const forward = new THREE.Vector3(Math.sin(car.heading), 0, Math.cos(car.heading));
+    camera.position.copy(car.group.position).add(new THREE.Vector3(0, 4.2, 0)).add(forward.clone().multiplyScalar(-5.2));
+    camera.lookAt(car.group.position.clone().add(forward.multiplyScalar(8)).add(new THREE.Vector3(0, 1.5, 0)));
   }
 }
 
@@ -660,6 +796,20 @@ function bindControls() {
     world.speed = Number(speedSlider.value);
     speedValue.textContent = `${world.speed.toFixed(1)}x`;
   });
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key in world.keys) {
+      world.keys[event.key] = true;
+      event.preventDefault();
+    }
+  });
+
+  window.addEventListener("keyup", (event) => {
+    if (event.key in world.keys) {
+      world.keys[event.key] = false;
+      event.preventDefault();
+    }
+  });
 }
 
 function updateFps(rawDelta) {
@@ -684,7 +834,7 @@ function animate() {
   const delta = Math.min(rawDelta * world.speed, 0.12);
   updateFps(rawDelta);
   updateTrain(delta);
-  updateBoat(delta);
+  updateBumperCars(delta);
   updateFerris(delta);
   updateEnvironment(delta);
   updateCamera();
@@ -696,7 +846,7 @@ addLights();
 createBase();
 createCoaster();
 createFerrisWheel();
-createBoatRide();
+createBumperCars();
 createParkBuildings();
 createTreesAndLamps();
 createWeatherParticles();
