@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rollercoaster Theme Park</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="park"></canvas>
+
+    <header class="hud hud-top">
+      <div>
+        <h1>Rollercoaster Park</h1>
+        <p>3D theme park simulation</p>
+      </div>
+      <div class="status" id="status">Normal view</div>
+    </header>
+
+    <aside class="hud controls" aria-label="Simulation controls">
+      <section>
+        <h2>Setting</h2>
+        <div class="button-grid" id="settingControls">
+          <button data-setting="day" class="active">Day</button>
+          <button data-setting="winter">Winter</button>
+          <button data-setting="summer">Summer</button>
+          <button data-setting="fall">Fall</button>
+          <button data-setting="night">Night</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>POV</h2>
+        <div class="button-grid" id="povControls">
+          <button data-pov="normal" class="active">Normal</button>
+          <button data-pov="coaster">Coaster</button>
+          <button data-pov="ferris">Ferris</button>
+          <button data-pov="boat">Boat</button>
+        </div>
+      </section>
+    </aside>
+
+    <div class="hint">Drag to orbit. Scroll to zoom.</div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
