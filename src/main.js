@@ -9,11 +9,15 @@ const speedValue = document.querySelector("#speedValue");
 const scene = new THREE.Scene();
 const clock = new THREE.Clock();
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: false,
+  powerPreference: "high-performance",
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.15));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = false;
+renderer.shadowMap.type = THREE.BasicShadowMap;
 
 const camera = new THREE.PerspectiveCamera(
   58,
@@ -134,7 +138,7 @@ function addLights() {
   world.sun = new THREE.DirectionalLight(0xffffff, 2.15);
   world.sun.position.set(-70, 120, 55);
   world.sun.castShadow = true;
-  world.sun.shadow.mapSize.set(2048, 2048);
+  world.sun.shadow.mapSize.set(512, 512);
   world.sun.shadow.camera.near = 1;
   world.sun.shadow.camera.far = 280;
   world.sun.shadow.camera.left = -120;
@@ -231,7 +235,7 @@ function createCoaster() {
   const tieMaterial = materials.railDark;
   [-1.45, 1.45].forEach((offset) => {
     const rail = new THREE.Mesh(
-      new THREE.TubeGeometry(coasterCurve, 420, 0.36, 12, true),
+      new THREE.TubeGeometry(coasterCurve, 240, 0.36, 8, true),
       railMaterial,
     );
     rail.position.x = offset;
@@ -240,9 +244,9 @@ function createCoaster() {
     root.add(rail);
   });
 
-  for (let i = 0; i < 110; i += 1) {
-    const point = coasterCurve.getPoint(i / 110);
-    const tangent = coasterCurve.getTangent(i / 110);
+  for (let i = 0; i < 72; i += 1) {
+    const point = coasterCurve.getPoint(i / 72);
+    const tangent = coasterCurve.getTangent(i / 72);
     const tie = mesh(
       new THREE.BoxGeometry(4.4, 0.22, 0.52),
       tieMaterial,
@@ -300,7 +304,7 @@ function createFerrisWheel() {
   const radius = 18;
 
   const rim = new THREE.Mesh(
-    new THREE.TorusGeometry(radius, 0.5, 12, 96),
+    new THREE.TorusGeometry(radius, 0.5, 8, 64),
     materials.blueSteel,
   );
   frame.add(rim);
@@ -529,8 +533,8 @@ function createTreesAndLamps() {
 }
 
 function createWeatherParticles() {
-  world.snow = makeParticleField(650, 0xf7fbff, 0.14, 90);
-  world.leaves = makeParticleField(380, 0xc85d24, 0.22, 70);
+  world.snow = makeParticleField(260, 0xf7fbff, 0.14, 90);
+  world.leaves = makeParticleField(170, 0xc85d24, 0.22, 70);
   root.add(world.snow, world.leaves);
 }
 
