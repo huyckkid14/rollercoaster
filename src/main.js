@@ -422,7 +422,7 @@ function createTraffic() {
         speed: lane.speed,
         baseSpeed: lane.speed,
         targetSpeed: lane.speed,
-        cooldown: THREE.MathUtils.randFloat(0.25, 1.6),
+        cooldown: THREE.MathUtils.randFloat(5, 12),
         changingLane: false,
         changeT: 0,
         targetLane: null,
@@ -451,14 +451,8 @@ function createTraffic() {
       .sort((a, b) => Math.abs(a.z - lane.z) - Math.abs(b.z - lane.z))[0];
   });
 
-  state.lanes.forEach((lane, laneIndex) => {
-    const demoCar = lane.cars[(laneIndex * 2 + 1) % lane.cars.length];
-    demoCar.userData.cooldown = 0.2 + laneIndex * 0.35;
-  });
-
   state.driverCar = state.cars[5];
   state.driverCar.userData.isDriver = true;
-  state.driverCar.userData.cooldown = 0.55;
 }
 
 function createCar(color, truck = false) {
@@ -566,7 +560,7 @@ function progressDistanceAhead(car, other) {
   return (data.progress - otherData.progress + 1) % 1;
 }
 
-function isLaneGapClear(car, lane, minGap = 0.052) {
+function isLaneGapClear(car, lane, minGap = 0.07) {
   return lane.cars.every((other) => other === car || circularDistance(car.userData.progress, other.userData.progress) > minGap);
 }
 
@@ -598,7 +592,7 @@ function finishLaneChange(car) {
   data.changingLane = false;
   data.targetLane = null;
   data.indicatorSide = null;
-  data.cooldown = THREE.MathUtils.randFloat(1.4, 3.2);
+  data.cooldown = THREE.MathUtils.randFloat(7, 14);
 }
 
 function updateLaneChangeIntent(car, delta) {
@@ -613,7 +607,7 @@ function updateLaneChangeIntent(car, delta) {
   if (targetLane && isLaneGapClear(car, targetLane)) {
     startLaneChange(car, targetLane);
   } else {
-    data.cooldown = THREE.MathUtils.randFloat(0.25, 0.9);
+    data.cooldown = THREE.MathUtils.randFloat(2, 5);
   }
 }
 
