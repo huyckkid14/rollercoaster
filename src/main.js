@@ -458,6 +458,7 @@ function createTraffic() {
 
   state.driverCar = state.cars[5];
   state.driverCar.userData.isDriver = true;
+  state.driverCar.userData.cooldown = 0.55;
 }
 
 function createCar(color, truck = false) {
@@ -571,7 +572,10 @@ function startLaneChange(car, targetLane) {
   data.targetLane = targetLane.id;
   data.targetZ = targetLane.z;
   data.startZ = data.currentZ ?? data.z;
-  data.indicatorSide = targetLane.z > data.startZ ? "right" : "left";
+  const targetIsWorldRight = targetLane.z < data.startZ;
+  data.indicatorSide = data.dir === 1
+    ? (targetIsWorldRight ? "right" : "left")
+    : (targetIsWorldRight ? "left" : "right");
 }
 
 function finishLaneChange(car) {
@@ -594,7 +598,7 @@ function finishLaneChange(car) {
 
 function updateLaneChangeIntent(car, delta) {
   const data = car.userData;
-  if (data.isDriver || data.changingLane) return;
+  if (data.changingLane) return;
 
   data.cooldown -= delta;
   if (data.cooldown > 0) return;
