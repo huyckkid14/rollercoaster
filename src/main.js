@@ -445,13 +445,14 @@ function createParkBuildings() {
   root.add(tower);
 
   const carousel = new THREE.Group();
-  carousel.add(mesh(new THREE.CylinderGeometry(12, 12, 2, 48), materials.cream, new THREE.Vector3(0, 1, 0)));
-  carousel.add(mesh(new THREE.CylinderGeometry(10, 12, 6, 48), materials.red, new THREE.Vector3(0, 5, 0)));
-  carousel.add(mesh(new THREE.ConeGeometry(12.8, 7, 48), materials.yellow, new THREE.Vector3(0, 11, 0)));
-  for (let i = 0; i < 8; i += 1) {
-    const angle = (i / 8) * Math.PI * 2;
+  carousel.add(mesh(new THREE.CylinderGeometry(15, 15, 2.2, 56), materials.cream, new THREE.Vector3(0, 1, 0)));
+  carousel.add(mesh(new THREE.CylinderGeometry(12.5, 14, 6.5, 56), materials.red, new THREE.Vector3(0, 5.3, 0)));
+  carousel.add(mesh(new THREE.ConeGeometry(15.8, 8.5, 56), materials.yellow, new THREE.Vector3(0, 12.8, 0)));
+  carousel.add(mesh(new THREE.CylinderGeometry(0.5, 0.5, 15, 16), materials.steel, new THREE.Vector3(0, 7.5, 0)));
+  for (let i = 0; i < 10; i += 1) {
+    const angle = (i / 10) * Math.PI * 2;
     const horse = new THREE.Group();
-    horse.position.set(Math.cos(angle) * 7, 4.1, Math.sin(angle) * 7);
+    horse.position.set(Math.cos(angle) * 9, 4.35, Math.sin(angle) * 9);
     horse.add(mesh(new THREE.BoxGeometry(2.6, 1.2, 0.75), i % 2 ? materials.blueSteel : materials.red, new THREE.Vector3(0, 0, 0)));
     horse.add(mesh(new THREE.BoxGeometry(0.75, 0.65, 0.65), materials.cream, new THREE.Vector3(1.45, 0.32, 0)));
     horse.add(mesh(new THREE.ConeGeometry(0.38, 0.9, 12), materials.cream, new THREE.Vector3(1.95, 0.35, 0)));
@@ -459,17 +460,17 @@ function createParkBuildings() {
     horse.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.1, 10), materials.black, new THREE.Vector3(0.8, -0.85, -0.28)));
     horse.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.1, 10), materials.black, new THREE.Vector3(-0.8, -0.85, 0.28)));
     horse.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.1, 10), materials.black, new THREE.Vector3(0.8, -0.85, 0.28)));
-    horse.userData.baseY = 4.1;
+    horse.userData.baseY = 4.35;
     horse.userData.rideAngle = angle;
     horse.rotation.y = -angle;
     carousel.add(horse);
-    carousel.add(mesh(new THREE.CylinderGeometry(0.08, 0.08, 6, 8), materials.steel, new THREE.Vector3(Math.cos(angle) * 7, 4, Math.sin(angle) * 7)));
+    carousel.add(mesh(new THREE.CylinderGeometry(0.11, 0.11, 7.8, 10), materials.steel, new THREE.Vector3(Math.cos(angle) * 9, 4.9, Math.sin(angle) * 9)));
     world.carouselHorses.push(horse);
     if (i === 0) {
       world.carouselHorse = horse;
     }
   }
-  carousel.position.set(50, 1.5, 28);
+  carousel.position.set(24, 1.55, 28);
   carousel.userData.spin = true;
   root.add(carousel);
   world.carousel = carousel;

@@ -21,11 +21,15 @@ body {
 button {
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 6px;
-  padding: 0.62rem 0.72rem;
+  min-width: 0;
+  padding: 0.62rem 0.5rem;
   color: #f7fbff;
   background: rgba(18, 30, 46, 0.68);
   font: inherit;
+  font-size: 0.86rem;
   font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
   cursor: pointer;
   transition:
     background 160ms ease,
@@ -115,7 +119,7 @@ p,
 .controls {
   left: 1rem;
   bottom: 1rem;
-  width: min(24rem, calc(100vw - 2rem));
+  width: min(27rem, calc(100vw - 2rem));
   display: grid;
   gap: 1rem;
   padding: 1rem;
@@ -154,7 +158,7 @@ p,
 }
 
 #povControls {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .hint {
