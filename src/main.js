@@ -422,12 +422,12 @@ function createTraffic() {
         speed: lane.speed,
         baseSpeed: lane.speed,
         targetSpeed: lane.speed,
-        cooldown: THREE.MathUtils.randFloat(3, 10),
+        cooldown: THREE.MathUtils.randFloat(1.4, 4.2),
         changingLane: false,
         changeT: 0,
         targetLane: null,
         targetZ: lane.z,
-        indicators: car.userData.indicators,
+        signalLights: car.userData.signalLights,
         isDriver: false,
       };
       updateCarPosition(car, 0);
@@ -457,7 +457,7 @@ function createTraffic() {
 
 function createCar(color, truck = false) {
   const group = new THREE.Group();
-  group.userData.indicators = [];
+  group.userData.signalLights = [];
   const bodyMat = new THREE.MeshStandardMaterial({
     color,
     roughness: 0.36,
@@ -501,35 +501,26 @@ function createCar(color, truck = false) {
     emissive: 0xffd18a,
     emissiveIntensity: 0.5,
   });
-  const tailMat = new THREE.MeshStandardMaterial({
-    color: 0xff2f26,
-    emissive: 0xff1a12,
-    emissiveIntensity: 0.35,
-  });
-  const makeIndicator = (side, z) => {
+  const makeTailLight = (side) => {
     const material = new THREE.MeshStandardMaterial({
-      color: 0xffb000,
-      emissive: 0xff9c00,
-      emissiveIntensity: 0,
+      color: 0xff2f26,
+      emissive: 0xff1a12,
+      emissiveIntensity: 0.35,
     });
-    const indicator = makeMesh(
-      new THREE.BoxGeometry(0.52, 0.34, 0.2),
+    const light = makeMesh(
+      new THREE.BoxGeometry(0.7, 0.38, 0.22),
       material,
-      new THREE.Vector3(side === "left" ? -1.72 : 1.72, 1.2, z),
+      new THREE.Vector3(side === "left" ? -0.9 : 0.9, 1, -length / 2 - 0.04),
       false,
       false,
     );
-    group.userData.indicators.push({ side, material });
-    return indicator;
+    group.userData.signalLights.push({ side, material });
+    return light;
   };
   group.add(makeMesh(new THREE.BoxGeometry(0.75, 0.42, 0.22), headlightMat, new THREE.Vector3(-0.9, 1.05, length / 2 + 0.04)));
   group.add(makeMesh(new THREE.BoxGeometry(0.75, 0.42, 0.22), headlightMat, new THREE.Vector3(0.9, 1.05, length / 2 + 0.04)));
-  group.add(makeMesh(new THREE.BoxGeometry(0.7, 0.38, 0.22), tailMat, new THREE.Vector3(-0.9, 1, -length / 2 - 0.04)));
-  group.add(makeMesh(new THREE.BoxGeometry(0.7, 0.38, 0.22), tailMat, new THREE.Vector3(0.9, 1, -length / 2 - 0.04)));
-  group.add(makeIndicator("left", length / 2 + 0.08));
-  group.add(makeIndicator("left", -length / 2 - 0.08));
-  group.add(makeIndicator("right", length / 2 + 0.08));
-  group.add(makeIndicator("right", -length / 2 - 0.08));
+  group.add(makeTailLight("left"));
+  group.add(makeTailLight("right"));
   group.traverse((item) => {
     if (item.isMesh) {
       item.castShadow = false;
@@ -593,7 +584,7 @@ function finishLaneChange(car) {
   data.changingLane = false;
   data.targetLane = null;
   data.indicatorSide = null;
-  data.cooldown = THREE.MathUtils.randFloat(7, 16);
+  data.cooldown = THREE.MathUtils.randFloat(2.8, 6.4);
 }
 
 function updateLaneChangeIntent(car, delta) {
@@ -608,7 +599,7 @@ function updateLaneChangeIntent(car, delta) {
   if (targetLane && isLaneGapClear(car, targetLane)) {
     startLaneChange(car, targetLane);
   } else {
-    data.cooldown = THREE.MathUtils.randFloat(2, 5);
+    data.cooldown = THREE.MathUtils.randFloat(0.8, 2.2);
   }
 }
 
@@ -631,8 +622,17 @@ function updateTurnIndicators() {
   const blinkOn = Math.sin(clock.elapsedTime * 10) > 0;
   state.cars.forEach((car) => {
     const data = car.userData;
-    data.indicators.forEach(({ side, material }) => {
-      material.emissiveIntensity = data.changingLane && data.indicatorSide === side && blinkOn ? 1.5 : 0;
+    data.signalLights.forEach(({ side, material }) => {
+      const isTurningSide = data.changingLane && data.indicatorSide === side;
+      if (isTurningSide && blinkOn) {
+        material.color.setHex(0xffb000);
+        material.emissive.setHex(0xff9c00);
+        material.emissiveIntensity = 1.6;
+      } else {
+        material.color.setHex(0xff2f26);
+        material.emissive.setHex(0xff1a12);
+        material.emissiveIntensity = 0.35;
+      }
     });
   });
 }
