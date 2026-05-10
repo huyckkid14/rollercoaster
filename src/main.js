@@ -45,6 +45,17 @@ const state = {
     frames: 0,
     lastUpdate: performance.now(),
   },
+  audio: {
+    enabled: false,
+    context: null,
+    master: null,
+    engine: null,
+    engineGain: null,
+    roadNoise: null,
+    roadGain: null,
+    wind: null,
+    windGain: null,
+  },
   snow: null,
   leaves: null,
   fogBank: [],
@@ -490,7 +501,7 @@ function trafficPoint(progress, laneZ) {
   const bridgeLeft = -184;
   const bridgeRight = 184;
   const x = bridgeLeft + (bridgeRight - bridgeLeft) * p;
-  return { x, y: 22.1, z: laneZ, heading: Math.PI / 2 };
+  return { x, y: 20.8, z: laneZ, heading: Math.PI / 2 };
 }
 
 function updateCarPosition(car, delta) {
@@ -719,6 +730,112 @@ function refreshFpsOverlay() {
   state.fps.lastUpdate = now;
 }
 
+function makeNoiseSource(context, seconds = 2) {
+  const buffer = context.createBuffer(1, context.sampleRate * seconds, context.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i += 1) {
+    data[i] = Math.random() * 2 - 1;
+  }
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  return source;
+}
+
+function initAudio() {
+  if (state.audio.context) return;
+
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+
+  const context = new AudioContext();
+  const master = context.createGain();
+  master.gain.value = 0;
+  master.connect(context.destination);
+
+  const engine = context.createOscillator();
+  const engineFilter = context.createBiquadFilter();
+  const engineGain = context.createGain();
+  engine.type = "sawtooth";
+  engine.frequency.value = 72;
+  engineFilter.type = "lowpass";
+  engineFilter.frequency.value = 290;
+  engineGain.gain.value = 0.12;
+  engine.connect(engineFilter).connect(engineGain).connect(master);
+
+  const roadNoise = makeNoiseSource(context);
+  const roadFilter = context.createBiquadFilter();
+  const roadGain = context.createGain();
+  roadFilter.type = "bandpass";
+  roadFilter.frequency.value = 135;
+  roadFilter.Q.value = 0.8;
+  roadGain.gain.value = 0.05;
+  roadNoise.connect(roadFilter).connect(roadGain).connect(master);
+
+  const wind = makeNoiseSource(context);
+  const windFilter = context.createBiquadFilter();
+  const windGain = context.createGain();
+  windFilter.type = "highpass";
+  windFilter.frequency.value = 620;
+  windGain.gain.value = 0.018;
+  wind.connect(windFilter).connect(windGain).connect(master);
+
+  engine.start();
+  roadNoise.start();
+  wind.start();
+
+  state.audio.context = context;
+  state.audio.master = master;
+  state.audio.engine = engine;
+  state.audio.engineGain = engineGain;
+  state.audio.roadNoise = roadNoise;
+  state.audio.roadGain = roadGain;
+  state.audio.wind = wind;
+  state.audio.windGain = windGain;
+}
+
+function setSoundEnabled(enabled) {
+  initAudio();
+  const { context, master } = state.audio;
+  if (!context || !master) return;
+
+  state.audio.enabled = enabled;
+  if (context.state === "suspended") {
+    context.resume();
+  }
+  const now = context.currentTime;
+  master.gain.cancelScheduledValues(now);
+  master.gain.linearRampToValueAtTime(enabled ? 0.55 : 0, now + 0.18);
+}
+
+function playControlClick() {
+  if (!state.audio.enabled || !state.audio.context) return;
+
+  const context = state.audio.context;
+  const click = context.createOscillator();
+  const gain = context.createGain();
+  click.type = "triangle";
+  click.frequency.setValueAtTime(760, context.currentTime);
+  click.frequency.exponentialRampToValueAtTime(280, context.currentTime + 0.06);
+  gain.gain.setValueAtTime(0.08, context.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.08);
+  click.connect(gain).connect(state.audio.master);
+  click.start();
+  click.stop(context.currentTime + 0.09);
+}
+
+function updateAudio(delta) {
+  if (!state.audio.context || !state.audio.enabled) return;
+
+  const carSpeed = state.driverCar?.userData.speed ?? 0.04;
+  const targetEngine = 70 + carSpeed * 1450 + Math.sin(clock.elapsedTime * 5.5) * 4;
+  const now = state.audio.context.currentTime;
+  state.audio.engine.frequency.setTargetAtTime(targetEngine, now, 0.08);
+  state.audio.engineGain.gain.setTargetAtTime(state.pov === "driver" ? 0.18 : 0.09, now, 0.12);
+  state.audio.roadGain.gain.setTargetAtTime(state.pov === "driver" ? 0.08 : 0.035, now, 0.12);
+  state.audio.windGain.gain.setTargetAtTime(state.pov === "driver" ? 0.03 : 0.016, now, 0.12);
+}
+
 function updateEnvironment(delta) {
   const time = clock.elapsedTime;
   const waterPositions = state.water.geometry.attributes.position;
@@ -774,6 +891,7 @@ function bindControls() {
     statusEl.textContent = `${button.textContent} POV`;
     cockpitEl.classList.toggle("active", state.pov === "driver");
     hintEl.textContent = state.pov === "driver" ? "Driver dashboard POV" : "Drag to move. Scroll to zoom.";
+    playControlClick();
   });
 
   document.querySelector("#settingControls").addEventListener("click", (event) => {
@@ -782,6 +900,17 @@ function bindControls() {
     document.querySelectorAll("[data-setting]").forEach((item) => item.classList.remove("active"));
     button.classList.add("active");
     applySetting(button.dataset.setting);
+    playControlClick();
+  });
+
+  document.querySelector("#soundControls").addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    const nextEnabled = !state.audio.enabled;
+    setSoundEnabled(nextEnabled);
+    button.classList.toggle("active", nextEnabled);
+    button.textContent = nextEnabled ? "Sound On" : "Sound Off";
+    playControlClick();
   });
 }
 
@@ -796,6 +925,7 @@ function animate() {
   countFrame();
   updateTraffic(delta);
   updateEnvironment(delta);
+  updateAudio(delta);
   updateCamera();
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
