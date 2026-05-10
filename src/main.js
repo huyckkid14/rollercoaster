@@ -67,7 +67,7 @@ const world = {
   platform: null,
   grass: null,
   water: null,
-  coasterTrain: null,
+  coasterTrain: [],
   playerCar: null,
   ferrisWheel: null,
   ferrisCabins: [],
@@ -270,19 +270,25 @@ function createCoaster() {
   station.rotation.y = -0.2;
   root.add(station);
 
-  world.coasterTrain = new THREE.Group();
+  world.coasterTrain = [];
   for (let i = 0; i < 5; i += 1) {
-    const car = new THREE.Group();
-    car.add(mesh(new THREE.BoxGeometry(4.2, 1.25, 3), i % 2 ? materials.red : materials.blueSteel, new THREE.Vector3(0, 0, 0)));
-    car.add(mesh(new THREE.BoxGeometry(3.4, 0.35, 2.3), materials.cream, new THREE.Vector3(0, 0.8, 0)));
-    car.add(mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.6, 12), materials.black, new THREE.Vector3(-1.45, -0.65, 1.25)));
-    car.add(mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.6, 12), materials.black, new THREE.Vector3(1.45, -0.65, 1.25)));
-    car.add(mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.6, 12), materials.black, new THREE.Vector3(-1.45, -0.65, -1.25)));
-    car.add(mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.6, 12), materials.black, new THREE.Vector3(1.45, -0.65, -1.25)));
-    car.position.z = i * 3.9;
-    world.coasterTrain.add(car);
+    const car = createCoasterCar(i % 2 ? materials.red : materials.blueSteel);
+    car.userData.trainOffset = i * 0.011;
+    world.coasterTrain.push(car);
+    root.add(car);
   }
-  root.add(world.coasterTrain);
+}
+
+function createCoasterCar(bodyMaterial) {
+  const car = new THREE.Group();
+  car.add(mesh(new THREE.BoxGeometry(4.2, 1.25, 3), bodyMaterial, new THREE.Vector3(0, 0, 0)));
+  car.add(mesh(new THREE.BoxGeometry(3.4, 0.35, 2.3), materials.cream, new THREE.Vector3(0, 0.8, 0)));
+  car.add(mesh(new THREE.BoxGeometry(1.1, 0.42, 0.18), materials.black, new THREE.Vector3(0, 1.35, 1.58)));
+  car.add(mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.6, 12), materials.black, new THREE.Vector3(-1.45, -0.65, 1.25)));
+  car.add(mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.6, 12), materials.black, new THREE.Vector3(1.45, -0.65, 1.25)));
+  car.add(mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.6, 12), materials.black, new THREE.Vector3(-1.45, -0.65, -1.25)));
+  car.add(mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.6, 12), materials.black, new THREE.Vector3(1.45, -0.65, -1.25)));
+  return car;
 }
 
 function createFerrisWheel() {
@@ -527,11 +533,14 @@ function makeParticleField(count, color, size, range) {
 
 function updateTrain(delta) {
   world.coasterProgress = (world.coasterProgress + delta * 0.055) % 1;
-  const point = coasterCurve.getPointAt(world.coasterProgress);
-  const tangent = coasterCurve.getTangentAt(world.coasterProgress);
-  world.coasterTrain.position.copy(point);
-  world.coasterTrain.position.y += 1.6;
-  world.coasterTrain.lookAt(point.clone().add(tangent));
+  world.coasterTrain.forEach((car) => {
+    const progress = (world.coasterProgress - car.userData.trainOffset + 1) % 1;
+    const point = coasterCurve.getPointAt(progress);
+    const tangent = coasterCurve.getTangentAt(progress);
+    car.position.copy(point);
+    car.position.y += 1.45;
+    car.rotation.set(0, Math.atan2(tangent.x, tangent.z), 0);
+  });
 }
 
 function updateBumperCars(delta) {
@@ -752,10 +761,10 @@ function updateCamera() {
   controls.enabled = false;
 
   if (world.pov === "coaster") {
-    const point = coasterCurve.getPointAt(world.coasterProgress);
-    const tangent = coasterCurve.getTangentAt(world.coasterProgress);
-    camera.position.copy(point).add(new THREE.Vector3(0, 3.4, 0));
-    camera.lookAt(point.clone().add(tangent.multiplyScalar(13)).add(new THREE.Vector3(0, 1.3, 0)));
+    const leadCar = world.coasterTrain[0];
+    const forward = new THREE.Vector3(Math.sin(leadCar.rotation.y), 0, Math.cos(leadCar.rotation.y));
+    camera.position.copy(leadCar.position).add(new THREE.Vector3(0, 2.4, 0)).add(forward.clone().multiplyScalar(-1.6));
+    camera.lookAt(leadCar.position.clone().add(forward.multiplyScalar(12)).add(new THREE.Vector3(0, 1.5, 0)));
   }
 
   if (world.pov === "ferris") {
