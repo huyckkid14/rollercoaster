@@ -656,11 +656,11 @@ function updateYieldingSpeeds() {
       return Math.min(nearest, distance);
     }, Infinity);
 
-    const openRoad = nearestAhead === Infinity || nearestAhead > 0.23;
+    const openRoad = nearestAhead === Infinity || nearestAhead > 0.095;
     const followBlend = nearestAhead === Infinity
       ? 1
-      : THREE.MathUtils.clamp((nearestAhead - 0.12) / 0.18, 0, 1);
-    const cruiseMultiplier = openRoad ? 1.36 : THREE.MathUtils.lerp(1, 1.24, followBlend);
+      : THREE.MathUtils.clamp((nearestAhead - 0.055) / 0.12, 0, 1);
+    const cruiseMultiplier = openRoad ? 4.8 : THREE.MathUtils.lerp(0.82, 3.2, followBlend);
     data.targetSpeed = data.baseSpeed * cruiseMultiplier;
   });
 
@@ -685,7 +685,7 @@ function updateYieldingSpeeds() {
 function easeTrafficSpeeds(delta) {
   state.cars.forEach((car) => {
     const data = car.userData;
-    const easing = data.targetSpeed < data.speed ? 1.65 : 1.15;
+    const easing = data.targetSpeed < data.speed ? 2.4 : 3.8;
     data.speed = THREE.MathUtils.lerp(data.speed, data.targetSpeed, Math.min(delta * easing, 1));
   });
 }
