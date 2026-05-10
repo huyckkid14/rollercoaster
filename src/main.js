@@ -445,32 +445,34 @@ function createParkBuildings() {
   root.add(tower);
 
   const carousel = new THREE.Group();
-  carousel.add(mesh(new THREE.CylinderGeometry(15, 15, 2.2, 56), materials.cream, new THREE.Vector3(0, 1, 0)));
-  carousel.add(mesh(new THREE.CylinderGeometry(12.5, 14, 6.5, 56), materials.red, new THREE.Vector3(0, 5.3, 0)));
-  carousel.add(mesh(new THREE.ConeGeometry(15.8, 8.5, 56), materials.yellow, new THREE.Vector3(0, 12.8, 0)));
-  carousel.add(mesh(new THREE.CylinderGeometry(0.5, 0.5, 15, 16), materials.steel, new THREE.Vector3(0, 7.5, 0)));
-  for (let i = 0; i < 10; i += 1) {
-    const angle = (i / 10) * Math.PI * 2;
+  carousel.add(mesh(new THREE.CylinderGeometry(17, 17, 1.2, 64), materials.cream, new THREE.Vector3(0, 1, 0)));
+  const carouselRing = mesh(new THREE.TorusGeometry(13.8, 0.35, 12, 96), materials.yellow, new THREE.Vector3(0, 2.1, 0));
+  carouselRing.rotation.x = Math.PI / 2;
+  carousel.add(carouselRing);
+  carousel.add(mesh(new THREE.CylinderGeometry(0.35, 0.35, 10, 16), materials.steel, new THREE.Vector3(0, 6, 0)));
+  carousel.add(mesh(new THREE.SphereGeometry(1.1, 24, 16), materials.yellow, new THREE.Vector3(0, 11.3, 0)));
+  for (let i = 0; i < 12; i += 1) {
+    const angle = (i / 12) * Math.PI * 2;
     const horse = new THREE.Group();
-    horse.position.set(Math.cos(angle) * 9, 4.35, Math.sin(angle) * 9);
-    horse.add(mesh(new THREE.BoxGeometry(2.6, 1.2, 0.75), i % 2 ? materials.blueSteel : materials.red, new THREE.Vector3(0, 0, 0)));
-    horse.add(mesh(new THREE.BoxGeometry(0.75, 0.65, 0.65), materials.cream, new THREE.Vector3(1.45, 0.32, 0)));
-    horse.add(mesh(new THREE.ConeGeometry(0.38, 0.9, 12), materials.cream, new THREE.Vector3(1.95, 0.35, 0)));
+    horse.position.set(Math.cos(angle) * 11, 4.0, Math.sin(angle) * 11);
+    horse.add(mesh(new THREE.BoxGeometry(3.4, 1.25, 0.85), i % 2 ? materials.blueSteel : materials.red, new THREE.Vector3(0, 0, 0)));
+    horse.add(mesh(new THREE.BoxGeometry(0.9, 0.72, 0.72), materials.cream, new THREE.Vector3(1.85, 0.35, 0)));
+    horse.add(mesh(new THREE.ConeGeometry(0.42, 1.0, 12), materials.cream, new THREE.Vector3(2.45, 0.35, 0)));
     horse.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.1, 10), materials.black, new THREE.Vector3(-0.8, -0.85, -0.28)));
     horse.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.1, 10), materials.black, new THREE.Vector3(0.8, -0.85, -0.28)));
     horse.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.1, 10), materials.black, new THREE.Vector3(-0.8, -0.85, 0.28)));
     horse.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.1, 10), materials.black, new THREE.Vector3(0.8, -0.85, 0.28)));
-    horse.userData.baseY = 4.35;
+    horse.userData.baseY = 4.0;
     horse.userData.rideAngle = angle;
     horse.rotation.y = -angle;
     carousel.add(horse);
-    carousel.add(mesh(new THREE.CylinderGeometry(0.11, 0.11, 7.8, 10), materials.steel, new THREE.Vector3(Math.cos(angle) * 9, 4.9, Math.sin(angle) * 9)));
+    carousel.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 7.2, 10), materials.steel, new THREE.Vector3(Math.cos(angle) * 11, 4.7, Math.sin(angle) * 11)));
     world.carouselHorses.push(horse);
     if (i === 0) {
       world.carouselHorse = horse;
     }
   }
-  carousel.position.set(24, 1.55, 28);
+  carousel.position.set(0, 1.55, 26);
   carousel.userData.spin = true;
   root.add(carousel);
   world.carousel = carousel;
@@ -490,7 +492,7 @@ function addBuilding(x, z, width, depth, height, wallMaterial, roofMaterial) {
 
 function createTreesAndLamps() {
   const treePositions = [
-    [-65, 18], [-57, 24], [-48, 45], [-30, 48], [-3, 42], [22, 34],
+    [-65, 18], [-57, 24], [-48, 45],
     [58, 7], [64, -16], [44, -38], [12, -42], [-28, -38], [-64, -10],
   ];
 
@@ -512,6 +514,8 @@ function createTreesAndLamps() {
   for (let i = 0; i < 24; i += 1) {
     const t = i / 24;
     const point = coasterCurve.getPoint(t);
+    const distanceFromCarousel = Math.hypot(point.x - 0, point.z - 26);
+    if (distanceFromCarousel < 25) continue;
     const lamp = new THREE.Group();
     lamp.add(mesh(new THREE.CylinderGeometry(0.12, 0.16, 6, 8), materials.black, new THREE.Vector3(0, 3, 0)));
     lamp.add(mesh(new THREE.SphereGeometry(0.62, 16, 10), materials.cream, new THREE.Vector3(0, 6.35, 0)));
