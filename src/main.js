@@ -557,6 +557,15 @@ function circularDistance(a, b) {
   return Math.abs((((a - b) % 1) + 1.5) % 1 - 0.5);
 }
 
+function progressDistanceAhead(car, other) {
+  const data = car.userData;
+  const otherData = other.userData;
+  if (data.dir === 1) {
+    return (otherData.progress - data.progress + 1) % 1;
+  }
+  return (data.progress - otherData.progress + 1) % 1;
+}
+
 function isLaneGapClear(car, lane, minGap = 0.052) {
   return lane.cars.every((other) => other === car || circularDistance(car.userData.progress, other.userData.progress) > minGap);
 }
@@ -644,7 +653,21 @@ function updateTurnIndicators() {
 
 function updateYieldingSpeeds() {
   state.cars.forEach((car) => {
-    car.userData.targetSpeed = car.userData.baseSpeed;
+    const data = car.userData;
+    const lane = state.lanes[data.lane];
+    const nearestAhead = lane.cars.reduce((nearest, other) => {
+      if (other === car) return nearest;
+      const distance = progressDistanceAhead(car, other);
+      if (distance <= 0 || distance > 0.5) return nearest;
+      return Math.min(nearest, distance);
+    }, Infinity);
+
+    const openRoad = nearestAhead === Infinity || nearestAhead > 0.23;
+    const followBlend = nearestAhead === Infinity
+      ? 1
+      : THREE.MathUtils.clamp((nearestAhead - 0.12) / 0.18, 0, 1);
+    const cruiseMultiplier = openRoad ? 1.36 : THREE.MathUtils.lerp(1, 1.24, followBlend);
+    data.targetSpeed = data.baseSpeed * cruiseMultiplier;
   });
 
   state.cars.forEach((mergingCar) => {
