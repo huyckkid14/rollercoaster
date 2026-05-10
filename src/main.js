@@ -422,7 +422,7 @@ function createTraffic() {
         speed: lane.speed,
         baseSpeed: lane.speed,
         targetSpeed: lane.speed,
-        cooldown: THREE.MathUtils.randFloat(5, 12),
+        cooldown: THREE.MathUtils.randFloat(2.4, 6.2),
         changingLane: false,
         changeT: 0,
         targetLane: null,
@@ -560,7 +560,7 @@ function progressDistanceAhead(car, other) {
   return (data.progress - otherData.progress + 1) % 1;
 }
 
-function isLaneGapClear(car, lane, minGap = 0.07) {
+function isLaneGapClear(car, lane, minGap = 0.062) {
   return lane.cars.every((other) => other === car || circularDistance(car.userData.progress, other.userData.progress) > minGap);
 }
 
@@ -592,7 +592,7 @@ function finishLaneChange(car) {
   data.changingLane = false;
   data.targetLane = null;
   data.indicatorSide = null;
-  data.cooldown = THREE.MathUtils.randFloat(7, 14);
+  data.cooldown = THREE.MathUtils.randFloat(4.5, 8.5);
 }
 
 function updateLaneChangeIntent(car, delta) {
@@ -607,7 +607,7 @@ function updateLaneChangeIntent(car, delta) {
   if (targetLane && isLaneGapClear(car, targetLane)) {
     startLaneChange(car, targetLane);
   } else {
-    data.cooldown = THREE.MathUtils.randFloat(2, 5);
+    data.cooldown = THREE.MathUtils.randFloat(1, 2.4);
   }
 }
 
@@ -618,7 +618,7 @@ function updateLaneChangeMotion(car, delta) {
     return;
   }
 
-  data.changeT = Math.min(data.changeT + delta / 2.35, 1);
+  data.changeT = Math.min(data.changeT + delta / 2.7, 1);
   const eased = 0.5 - Math.cos(data.changeT * Math.PI) * 0.5;
   data.currentZ = THREE.MathUtils.lerp(data.startZ, data.targetZ, eased);
   if (data.changeT >= 1) {
@@ -675,7 +675,7 @@ function updateYieldingSpeeds() {
 function easeTrafficSpeeds(delta) {
   state.cars.forEach((car) => {
     const data = car.userData;
-    const easing = data.targetSpeed < data.speed ? 2.4 : 3.8;
+    const easing = data.targetSpeed < data.speed ? 1.15 : 2.4;
     data.speed = THREE.MathUtils.lerp(data.speed, data.targetSpeed, Math.min(delta * easing, 1));
   });
 }
@@ -694,7 +694,7 @@ function enforceLaneSpacing(lane) {
     if (gap < lane.minGap) {
       const trailing = lane.dir === 1 ? current.car : next.car;
       const blend = THREE.MathUtils.clamp(1 - gap / lane.minGap, 0, 1);
-      const safeSpeed = THREE.MathUtils.lerp(trailing.userData.baseSpeed, trailing.userData.baseSpeed * 0.18, blend);
+      const safeSpeed = THREE.MathUtils.lerp(trailing.userData.baseSpeed, trailing.userData.baseSpeed * 0.38, blend);
       trailing.userData.targetSpeed = Math.min(trailing.userData.targetSpeed, safeSpeed);
     }
   }
@@ -702,7 +702,6 @@ function enforceLaneSpacing(lane) {
 
 function enforceTrafficClearance() {
   const minProgressGap = 0.074;
-  const emergencyGap = 0.024;
   for (let i = 0; i < state.cars.length; i += 1) {
     for (let j = i + 1; j < state.cars.length; j += 1) {
       const a = state.cars[i];
@@ -721,12 +720,8 @@ function enforceTrafficClearance() {
       const trailing = aToB <= 0.5 ? a : b;
       const trailingData = trailing.userData;
       const blend = THREE.MathUtils.clamp(1 - gap / minProgressGap, 0, 1);
-      const safeSpeed = THREE.MathUtils.lerp(trailingData.baseSpeed, trailingData.baseSpeed * 0.08, blend);
+      const safeSpeed = THREE.MathUtils.lerp(trailingData.baseSpeed, trailingData.baseSpeed * 0.28, blend);
       trailingData.targetSpeed = Math.min(trailingData.targetSpeed, safeSpeed);
-
-      if (gap < emergencyGap) {
-        trailingData.speed = Math.min(trailingData.speed, trailingData.baseSpeed * 0.18);
-      }
     }
   }
 }
