@@ -593,7 +593,7 @@ function finishLaneChange(car) {
   data.changingLane = false;
   data.targetLane = null;
   data.indicatorSide = null;
-  data.cooldown = THREE.MathUtils.randFloat(1.1, 2.8);
+  data.cooldown = THREE.MathUtils.randFloat(1.4, 3.2);
 }
 
 function updateLaneChangeIntent(car, delta) {
@@ -619,8 +619,8 @@ function updateLaneChangeMotion(car, delta) {
     return;
   }
 
-  data.changeT = Math.min(data.changeT + delta / 1.35, 1);
-  const eased = data.changeT * data.changeT * (3 - 2 * data.changeT);
+  data.changeT = Math.min(data.changeT + delta / 2.35, 1);
+  const eased = 0.5 - Math.cos(data.changeT * Math.PI) * 0.5;
   data.currentZ = THREE.MathUtils.lerp(data.startZ, data.targetZ, eased);
   if (data.changeT >= 1) {
     finishLaneChange(car);
@@ -655,12 +655,15 @@ function updateYieldingSpeeds() {
     const merge = mergingCar.userData;
     if (!merge.changingLane || merge.targetLane === null) return;
 
-    merge.targetSpeed = merge.baseSpeed * 0.62;
+    merge.targetSpeed = merge.baseSpeed * 0.76;
     const targetLane = state.lanes[merge.targetLane];
     targetLane.cars.forEach((other) => {
       if (other === mergingCar) return;
-      if (circularDistance(merge.progress, other.userData.progress) < 0.13) {
-        other.userData.targetSpeed = Math.min(other.userData.targetSpeed, other.userData.baseSpeed * 0.48);
+      const distance = circularDistance(merge.progress, other.userData.progress);
+      if (distance < 0.15) {
+        const blend = THREE.MathUtils.clamp(1 - distance / 0.15, 0, 1);
+        const yieldSpeed = THREE.MathUtils.lerp(other.userData.baseSpeed, other.userData.baseSpeed * 0.64, blend);
+        other.userData.targetSpeed = Math.min(other.userData.targetSpeed, yieldSpeed);
       }
     });
   });
@@ -669,7 +672,8 @@ function updateYieldingSpeeds() {
 function easeTrafficSpeeds(delta) {
   state.cars.forEach((car) => {
     const data = car.userData;
-    data.speed = THREE.MathUtils.lerp(data.speed, data.targetSpeed, Math.min(delta * 3.4, 1));
+    const easing = data.targetSpeed < data.speed ? 1.65 : 1.15;
+    data.speed = THREE.MathUtils.lerp(data.speed, data.targetSpeed, Math.min(delta * easing, 1));
   });
 }
 
