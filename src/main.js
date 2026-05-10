@@ -557,10 +557,6 @@ function circularDistance(a, b) {
   return Math.abs((((a - b) % 1) + 1.5) % 1 - 0.5);
 }
 
-function signedProgressDelta(a, b) {
-  return (((a - b) % 1) + 1.5) % 1 - 0.5;
-}
-
 function isLaneGapClear(car, lane, minGap = 0.052) {
   return lane.cars.every((other) => other === car || circularDistance(car.userData.progress, other.userData.progress) > minGap);
 }
@@ -689,17 +685,17 @@ function enforceLaneSpacing(lane) {
     const gap = nextProgress - current.progress;
 
     if (gap < lane.minGap) {
-      const correction = (lane.minGap - gap) * 0.5;
-      current.progress = (current.progress - correction + 1) % 1;
-      next.progress = (next.progress + correction) % 1;
-      current.car.userData.progress = current.progress;
-      next.car.userData.progress = next.progress;
+      const trailing = lane.dir === 1 ? current.car : next.car;
+      const blend = THREE.MathUtils.clamp(1 - gap / lane.minGap, 0, 1);
+      const safeSpeed = THREE.MathUtils.lerp(trailing.userData.baseSpeed, trailing.userData.baseSpeed * 0.18, blend);
+      trailing.userData.targetSpeed = Math.min(trailing.userData.targetSpeed, safeSpeed);
     }
   }
 }
 
 function enforceTrafficClearance() {
   const minProgressGap = 0.074;
+  const emergencyGap = 0.024;
   for (let i = 0; i < state.cars.length; i += 1) {
     for (let j = i + 1; j < state.cars.length; j += 1) {
       const a = state.cars[i];
@@ -712,12 +708,18 @@ function enforceTrafficClearance() {
       const gap = circularDistance(ad.progress, bd.progress);
       if (gap >= minProgressGap) continue;
 
-      const push = (minProgressGap - gap) * 0.5;
-      const sign = signedProgressDelta(ad.progress, bd.progress) >= 0 ? 1 : -1;
-      ad.progress = (ad.progress + push * sign + 1) % 1;
-      bd.progress = (bd.progress - push * sign + 1) % 1;
-      ad.speed = Math.min(ad.speed, ad.baseSpeed * 0.45);
-      bd.speed = Math.min(bd.speed, bd.baseSpeed * 0.45);
+      const aToB = ad.dir === 1
+        ? (bd.progress - ad.progress + 1) % 1
+        : (ad.progress - bd.progress + 1) % 1;
+      const trailing = aToB <= 0.5 ? a : b;
+      const trailingData = trailing.userData;
+      const blend = THREE.MathUtils.clamp(1 - gap / minProgressGap, 0, 1);
+      const safeSpeed = THREE.MathUtils.lerp(trailingData.baseSpeed, trailingData.baseSpeed * 0.08, blend);
+      trailingData.targetSpeed = Math.min(trailingData.targetSpeed, safeSpeed);
+
+      if (gap < emergencyGap) {
+        trailingData.speed = Math.min(trailingData.speed, trailingData.baseSpeed * 0.18);
+      }
     }
   }
 }
@@ -900,14 +902,14 @@ function applySetting(setting) {
 function updateTraffic(delta) {
   state.cars.forEach((car) => updateLaneChangeIntent(car, delta));
   updateYieldingSpeeds();
+  state.lanes.forEach(enforceLaneSpacing);
+  enforceTrafficClearance();
   easeTrafficSpeeds(delta);
   state.cars.forEach((car) => {
     const data = car.userData;
     data.progress = (data.progress + delta * data.speed * state.trafficSpeed * data.dir) % 1;
   });
   state.cars.forEach((car) => updateLaneChangeMotion(car, delta));
-  state.lanes.forEach(enforceLaneSpacing);
-  enforceTrafficClearance();
   updateTurnIndicators();
   state.cars.forEach((car) => updateCarPosition(car, 0));
 }
