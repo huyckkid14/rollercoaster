@@ -10,10 +10,10 @@ const fpsOverlay = document.querySelector("#fpsOverlay");
 const scene = new THREE.Scene();
 const clock = new THREE.Clock();
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.BasicShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 
@@ -135,7 +135,7 @@ function addLights() {
   state.sun = new THREE.DirectionalLight(0xffffff, 2.25);
   state.sun.position.set(-120, 170, 95);
   state.sun.castShadow = true;
-  state.sun.shadow.mapSize.set(2048, 2048);
+  state.sun.shadow.mapSize.set(1024, 1024);
   state.sun.shadow.camera.left = -260;
   state.sun.shadow.camera.right = 260;
   state.sun.shadow.camera.top = 220;
@@ -144,13 +144,12 @@ function addLights() {
 
   state.moon = new THREE.DirectionalLight(0xb6cbff, 0);
   state.moon.position.set(90, 130, -110);
-  state.moon.castShadow = true;
   scene.add(state.ambient, state.hemi, state.sun, state.moon);
 }
 
 function createWorld() {
   const water = makeMesh(
-    new THREE.PlaneGeometry(620, 460, 80, 80),
+    new THREE.PlaneGeometry(620, 460, 1, 1),
     mats.water,
     new THREE.Vector3(0, -0.35, 0),
     false,
@@ -493,6 +492,12 @@ function createCar(color, truck = false) {
   group.add(makeMesh(new THREE.BoxGeometry(0.75, 0.42, 0.22), headlightMat, new THREE.Vector3(0.9, 1.05, length / 2 + 0.04)));
   group.add(makeMesh(new THREE.BoxGeometry(0.7, 0.38, 0.22), tailMat, new THREE.Vector3(-0.9, 1, -length / 2 - 0.04)));
   group.add(makeMesh(new THREE.BoxGeometry(0.7, 0.38, 0.22), tailMat, new THREE.Vector3(0.9, 1, -length / 2 - 0.04)));
+  group.traverse((item) => {
+    if (item.isMesh) {
+      item.castShadow = false;
+      item.receiveShadow = false;
+    }
+  });
   return group;
 }
 
@@ -838,14 +843,7 @@ function updateAudio(delta) {
 
 function updateEnvironment(delta) {
   const time = clock.elapsedTime;
-  const waterPositions = state.water.geometry.attributes.position;
-  for (let i = 0; i < waterPositions.count; i += 1) {
-    const x = waterPositions.getX(i);
-    const y = waterPositions.getY(i);
-    waterPositions.setZ(i, Math.sin(x * 0.035 + time) * 0.5 + Math.cos(y * 0.04 + time * 0.7) * 0.35);
-  }
-  waterPositions.needsUpdate = true;
-  state.water.geometry.computeVertexNormals();
+  state.water.material.roughness = 0.22 + Math.sin(time * 1.4) * 0.035;
 
   state.fogBank.forEach((fog, i) => {
     fog.position.x += delta * (1.8 + (i % 4) * 0.25);
