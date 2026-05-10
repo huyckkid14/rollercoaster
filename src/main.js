@@ -669,16 +669,6 @@ function updateYieldingSpeeds() {
     if (!merge.changingLane || merge.targetLane === null) return;
 
     merge.targetSpeed = merge.baseSpeed * 0.76;
-    const targetLane = state.lanes[merge.targetLane];
-    targetLane.cars.forEach((other) => {
-      if (other === mergingCar) return;
-      const distance = circularDistance(merge.progress, other.userData.progress);
-      if (distance < 0.15) {
-        const blend = THREE.MathUtils.clamp(1 - distance / 0.15, 0, 1);
-        const yieldSpeed = THREE.MathUtils.lerp(other.userData.baseSpeed, other.userData.baseSpeed * 0.64, blend);
-        other.userData.targetSpeed = Math.min(other.userData.targetSpeed, yieldSpeed);
-      }
-    });
   });
 }
 
@@ -720,7 +710,7 @@ function enforceTrafficClearance() {
       const ad = a.userData;
       const bd = b.userData;
       if (ad.dir !== bd.dir) continue;
-      if (Math.abs((ad.currentZ ?? ad.z) - (bd.currentZ ?? bd.z)) > 7.4) continue;
+      if (ad.lane !== bd.lane) continue;
 
       const gap = circularDistance(ad.progress, bd.progress);
       if (gap >= minProgressGap) continue;
