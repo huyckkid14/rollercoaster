@@ -71,6 +71,9 @@ const world = {
   playerCar: null,
   ferrisWheel: null,
   ferrisCabins: [],
+  carousel: null,
+  carouselHorses: [],
+  carouselHorse: null,
 };
 
 const materials = {
@@ -447,14 +450,24 @@ function createParkBuildings() {
   carousel.add(mesh(new THREE.ConeGeometry(12.8, 7, 48), materials.yellow, new THREE.Vector3(0, 11, 0)));
   for (let i = 0; i < 8; i += 1) {
     const angle = (i / 8) * Math.PI * 2;
-    const horse = mesh(
-      new THREE.BoxGeometry(2.6, 1.2, 0.75),
-      i % 2 ? materials.blueSteel : materials.red,
-      new THREE.Vector3(Math.cos(angle) * 7, 4.1, Math.sin(angle) * 7),
-    );
+    const horse = new THREE.Group();
+    horse.position.set(Math.cos(angle) * 7, 4.1, Math.sin(angle) * 7);
+    horse.add(mesh(new THREE.BoxGeometry(2.6, 1.2, 0.75), i % 2 ? materials.blueSteel : materials.red, new THREE.Vector3(0, 0, 0)));
+    horse.add(mesh(new THREE.BoxGeometry(0.75, 0.65, 0.65), materials.cream, new THREE.Vector3(1.45, 0.32, 0)));
+    horse.add(mesh(new THREE.ConeGeometry(0.38, 0.9, 12), materials.cream, new THREE.Vector3(1.95, 0.35, 0)));
+    horse.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.1, 10), materials.black, new THREE.Vector3(-0.8, -0.85, -0.28)));
+    horse.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.1, 10), materials.black, new THREE.Vector3(0.8, -0.85, -0.28)));
+    horse.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.1, 10), materials.black, new THREE.Vector3(-0.8, -0.85, 0.28)));
+    horse.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, 1.1, 10), materials.black, new THREE.Vector3(0.8, -0.85, 0.28)));
+    horse.userData.baseY = 4.1;
+    horse.userData.rideAngle = angle;
     horse.rotation.y = -angle;
     carousel.add(horse);
     carousel.add(mesh(new THREE.CylinderGeometry(0.08, 0.08, 6, 8), materials.steel, new THREE.Vector3(Math.cos(angle) * 7, 4, Math.sin(angle) * 7)));
+    world.carouselHorses.push(horse);
+    if (i === 0) {
+      world.carouselHorse = horse;
+    }
   }
   carousel.position.set(50, 1.5, 28);
   carousel.userData.spin = true;
@@ -642,6 +655,11 @@ function updateEnvironment(delta) {
 
   if (world.carousel) {
     world.carousel.rotation.y += delta * 0.45;
+    world.carouselHorses.forEach((horse) => {
+      horse.position.y =
+        horse.userData.baseY +
+        Math.sin(clock.elapsedTime * 2.2 + horse.userData.rideAngle) * 0.65;
+    });
   }
 
   if (world.snow.visible) {
@@ -773,6 +791,17 @@ function updateCamera() {
     cabin.getWorldPosition(worldPosition);
     camera.position.copy(worldPosition).add(new THREE.Vector3(0, 1.1, 3.6));
     camera.lookAt(new THREE.Vector3(10, 15, -18));
+  }
+
+  if (world.pov === "carousel") {
+    const horsePosition = new THREE.Vector3();
+    world.carouselHorse.getWorldPosition(horsePosition);
+    const forward = new THREE.Vector3();
+    world.carouselHorse.getWorldDirection(forward);
+    forward.y = 0;
+    forward.normalize();
+    camera.position.copy(horsePosition).add(new THREE.Vector3(0, 2.0, 0)).add(forward.clone().multiplyScalar(-1.4));
+    camera.lookAt(horsePosition.clone().add(new THREE.Vector3(0, 1.6, 0)).add(forward.multiplyScalar(8)));
   }
 
   if (world.pov === "bumper") {
