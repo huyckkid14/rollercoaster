@@ -422,7 +422,7 @@ function createTraffic() {
         speed: lane.speed,
         baseSpeed: lane.speed,
         targetSpeed: lane.speed,
-        cooldown: THREE.MathUtils.randFloat(1.4, 4.2),
+        cooldown: THREE.MathUtils.randFloat(0.25, 1.6),
         changingLane: false,
         changeT: 0,
         targetLane: null,
@@ -441,7 +441,7 @@ function createTraffic() {
       dir: lane.dir,
       z: lane.z,
       speed: lane.speed,
-      minGap: 1 / laneCars.length - 0.016,
+      minGap: 1 / laneCars.length - 0.03,
     });
   });
 
@@ -449,6 +449,11 @@ function createTraffic() {
     lane.neighbor = state.lanes
       .filter((candidate) => candidate.dir === lane.dir && candidate.id !== lane.id)
       .sort((a, b) => Math.abs(a.z - lane.z) - Math.abs(b.z - lane.z))[0];
+  });
+
+  state.lanes.forEach((lane, laneIndex) => {
+    const demoCar = lane.cars[(laneIndex * 2 + 1) % lane.cars.length];
+    demoCar.userData.cooldown = 0.2 + laneIndex * 0.35;
   });
 
   state.driverCar = state.cars[5];
@@ -555,7 +560,7 @@ function signedProgressDelta(a, b) {
   return (((a - b) % 1) + 1.5) % 1 - 0.5;
 }
 
-function isLaneGapClear(car, lane, minGap = 0.095) {
+function isLaneGapClear(car, lane, minGap = 0.052) {
   return lane.cars.every((other) => other === car || circularDistance(car.userData.progress, other.userData.progress) > minGap);
 }
 
@@ -584,7 +589,7 @@ function finishLaneChange(car) {
   data.changingLane = false;
   data.targetLane = null;
   data.indicatorSide = null;
-  data.cooldown = THREE.MathUtils.randFloat(2.8, 6.4);
+  data.cooldown = THREE.MathUtils.randFloat(1.1, 2.8);
 }
 
 function updateLaneChangeIntent(car, delta) {
@@ -599,7 +604,7 @@ function updateLaneChangeIntent(car, delta) {
   if (targetLane && isLaneGapClear(car, targetLane)) {
     startLaneChange(car, targetLane);
   } else {
-    data.cooldown = THREE.MathUtils.randFloat(0.8, 2.2);
+    data.cooldown = THREE.MathUtils.randFloat(0.25, 0.9);
   }
 }
 
@@ -610,7 +615,7 @@ function updateLaneChangeMotion(car, delta) {
     return;
   }
 
-  data.changeT = Math.min(data.changeT + delta / 2.8, 1);
+  data.changeT = Math.min(data.changeT + delta / 1.35, 1);
   const eased = data.changeT * data.changeT * (3 - 2 * data.changeT);
   data.currentZ = THREE.MathUtils.lerp(data.startZ, data.targetZ, eased);
   if (data.changeT >= 1) {
