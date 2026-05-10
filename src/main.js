@@ -306,21 +306,21 @@ function createBridge() {
 function createTower(parent, x, deckY) {
   const tower = new THREE.Group();
   const legGeo = new THREE.BoxGeometry(7.5, 95, 7.5);
-  [-13, 13].forEach((z) => {
+  [-23, 23].forEach((z) => {
     const leg = makeMesh(legGeo, mats.bridge, new THREE.Vector3(0, 45, z));
     tower.add(leg);
   });
 
   [24, 48, 73, 92].forEach((y) => {
     const beam = makeMesh(
-      new THREE.BoxGeometry(12, 4.4, 35),
+      new THREE.BoxGeometry(12, 4.4, 55),
       mats.bridgeDark,
       new THREE.Vector3(0, y, 0),
     );
     tower.add(beam);
   });
 
-  [-13, 13].forEach((z) => {
+  [-23, 23].forEach((z) => {
     const cap = makeMesh(
       new THREE.BoxGeometry(10.5, 5.8, 10.5),
       mats.bridge,
@@ -330,7 +330,7 @@ function createTower(parent, x, deckY) {
   });
 
   const base = makeMesh(
-    new THREE.BoxGeometry(24, 10, 44),
+    new THREE.BoxGeometry(24, 10, 62),
     mats.bridgeDark,
     new THREE.Vector3(0, -4, 0),
     true,
@@ -487,34 +487,10 @@ function createCar(color, truck = false) {
 
 function trafficPoint(progress, laneZ) {
   const p = ((progress % 1) + 1) % 1;
-  const bridgeStart = 0.19;
-  const bridgeEnd = 0.81;
-  const leftX = -232;
-  const rightX = 232;
   const bridgeLeft = -184;
   const bridgeRight = 184;
-  let x;
-  let z = laneZ;
-  let heading = 0;
-
-  if (p < bridgeStart) {
-    const t = p / bridgeStart;
-    x = leftX + (bridgeLeft - leftX) * t;
-    z = laneZ + Math.sin(t * Math.PI) * 20;
-    heading = Math.atan2(bridgeLeft - leftX, 20 * Math.PI * Math.cos(t * Math.PI));
-  } else if (p < bridgeEnd) {
-    const t = (p - bridgeStart) / (bridgeEnd - bridgeStart);
-    x = bridgeLeft + (bridgeRight - bridgeLeft) * t;
-    z = laneZ;
-    heading = Math.PI / 2;
-  } else {
-    const t = (p - bridgeEnd) / (1 - bridgeEnd);
-    x = bridgeRight + (rightX - bridgeRight) * t;
-    z = laneZ - Math.sin(t * Math.PI) * 20;
-    heading = Math.atan2(rightX - bridgeRight, -20 * Math.PI * Math.cos(t * Math.PI));
-  }
-
-  return { x, y: 22.1, z, heading };
+  const x = bridgeLeft + (bridgeRight - bridgeLeft) * p;
+  return { x, y: 22.1, z: laneZ, heading: Math.PI / 2 };
 }
 
 function updateCarPosition(car, delta) {
