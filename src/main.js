@@ -660,7 +660,7 @@ function updateYieldingSpeeds() {
     const followBlend = nearestAhead === Infinity
       ? 1
       : THREE.MathUtils.clamp((nearestAhead - 0.055) / 0.12, 0, 1);
-    const cruiseMultiplier = openRoad ? 4.8 : THREE.MathUtils.lerp(0.82, 3.2, followBlend);
+    const cruiseMultiplier = openRoad ? 2.7 : THREE.MathUtils.lerp(0.82, 1.85, followBlend);
     data.targetSpeed = data.baseSpeed * cruiseMultiplier;
   });
 
