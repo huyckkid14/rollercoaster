@@ -418,7 +418,16 @@ function createTraffic() {
         progress,
         dir: lane.dir,
         z: lane.z,
+        currentZ: lane.z,
         speed: lane.speed,
+        baseSpeed: lane.speed,
+        targetSpeed: lane.speed,
+        cooldown: THREE.MathUtils.randFloat(3, 10),
+        changingLane: false,
+        changeT: 0,
+        targetLane: null,
+        targetZ: lane.z,
+        indicators: car.userData.indicators,
         isDriver: false,
       };
       updateCarPosition(car, 0);
@@ -427,11 +436,19 @@ function createTraffic() {
       root.add(car);
     }
     state.lanes.push({
+      id: laneIndex,
       cars: laneCars,
       dir: lane.dir,
+      z: lane.z,
       speed: lane.speed,
       minGap: 1 / laneCars.length - 0.016,
     });
+  });
+
+  state.lanes.forEach((lane) => {
+    lane.neighbor = state.lanes
+      .filter((candidate) => candidate.dir === lane.dir && candidate.id !== lane.id)
+      .sort((a, b) => Math.abs(a.z - lane.z) - Math.abs(b.z - lane.z))[0];
   });
 
   state.driverCar = state.cars[5];
@@ -440,6 +457,7 @@ function createTraffic() {
 
 function createCar(color, truck = false) {
   const group = new THREE.Group();
+  group.userData.indicators = [];
   const bodyMat = new THREE.MeshStandardMaterial({
     color,
     roughness: 0.36,
@@ -488,10 +506,30 @@ function createCar(color, truck = false) {
     emissive: 0xff1a12,
     emissiveIntensity: 0.35,
   });
+  const makeIndicator = (side, z) => {
+    const material = new THREE.MeshStandardMaterial({
+      color: 0xffb000,
+      emissive: 0xff9c00,
+      emissiveIntensity: 0,
+    });
+    const indicator = makeMesh(
+      new THREE.BoxGeometry(0.52, 0.34, 0.2),
+      material,
+      new THREE.Vector3(side === "left" ? -1.72 : 1.72, 1.2, z),
+      false,
+      false,
+    );
+    group.userData.indicators.push({ side, material });
+    return indicator;
+  };
   group.add(makeMesh(new THREE.BoxGeometry(0.75, 0.42, 0.22), headlightMat, new THREE.Vector3(-0.9, 1.05, length / 2 + 0.04)));
   group.add(makeMesh(new THREE.BoxGeometry(0.75, 0.42, 0.22), headlightMat, new THREE.Vector3(0.9, 1.05, length / 2 + 0.04)));
   group.add(makeMesh(new THREE.BoxGeometry(0.7, 0.38, 0.22), tailMat, new THREE.Vector3(-0.9, 1, -length / 2 - 0.04)));
   group.add(makeMesh(new THREE.BoxGeometry(0.7, 0.38, 0.22), tailMat, new THREE.Vector3(0.9, 1, -length / 2 - 0.04)));
+  group.add(makeIndicator("left", length / 2 + 0.08));
+  group.add(makeIndicator("left", -length / 2 - 0.08));
+  group.add(makeIndicator("right", length / 2 + 0.08));
+  group.add(makeIndicator("right", -length / 2 - 0.08));
   group.traverse((item) => {
     if (item.isMesh) {
       item.castShadow = false;
@@ -512,10 +550,118 @@ function trafficPoint(progress, laneZ) {
 function updateCarPosition(car, delta) {
   const data = car.userData;
   data.progress = (data.progress + delta * data.speed * state.trafficSpeed * data.dir) % 1;
-  const laneZ = data.z;
+  const laneZ = data.currentZ ?? data.z;
   const point = trafficPoint(data.progress, laneZ);
   car.position.set(point.x, point.y, point.z);
   car.rotation.y = data.dir === 1 ? point.heading : point.heading + Math.PI;
+}
+
+function circularDistance(a, b) {
+  return Math.abs((((a - b) % 1) + 1.5) % 1 - 0.5);
+}
+
+function signedProgressDelta(a, b) {
+  return (((a - b) % 1) + 1.5) % 1 - 0.5;
+}
+
+function isLaneGapClear(car, lane, minGap = 0.095) {
+  return lane.cars.every((other) => other === car || circularDistance(car.userData.progress, other.userData.progress) > minGap);
+}
+
+function startLaneChange(car, targetLane) {
+  const data = car.userData;
+  data.changingLane = true;
+  data.changeT = 0;
+  data.targetLane = targetLane.id;
+  data.targetZ = targetLane.z;
+  data.startZ = data.currentZ ?? data.z;
+  data.indicatorSide = targetLane.z > data.startZ ? "right" : "left";
+}
+
+function finishLaneChange(car) {
+  const data = car.userData;
+  const sourceLane = state.lanes[data.lane];
+  const targetLane = state.lanes[data.targetLane];
+  sourceLane.cars = sourceLane.cars.filter((item) => item !== car);
+  if (!targetLane.cars.includes(car)) {
+    targetLane.cars.push(car);
+  }
+  data.lane = targetLane.id;
+  data.z = targetLane.z;
+  data.currentZ = targetLane.z;
+  data.targetZ = targetLane.z;
+  data.changingLane = false;
+  data.targetLane = null;
+  data.indicatorSide = null;
+  data.cooldown = THREE.MathUtils.randFloat(7, 16);
+}
+
+function updateLaneChangeIntent(car, delta) {
+  const data = car.userData;
+  if (data.isDriver || data.changingLane) return;
+
+  data.cooldown -= delta;
+  if (data.cooldown > 0) return;
+
+  const lane = state.lanes[data.lane];
+  const targetLane = lane.neighbor;
+  if (targetLane && isLaneGapClear(car, targetLane)) {
+    startLaneChange(car, targetLane);
+  } else {
+    data.cooldown = THREE.MathUtils.randFloat(2, 5);
+  }
+}
+
+function updateLaneChangeMotion(car, delta) {
+  const data = car.userData;
+  if (!data.changingLane) {
+    data.currentZ = data.z;
+    return;
+  }
+
+  data.changeT = Math.min(data.changeT + delta / 2.8, 1);
+  const eased = data.changeT * data.changeT * (3 - 2 * data.changeT);
+  data.currentZ = THREE.MathUtils.lerp(data.startZ, data.targetZ, eased);
+  if (data.changeT >= 1) {
+    finishLaneChange(car);
+  }
+}
+
+function updateTurnIndicators() {
+  const blinkOn = Math.sin(clock.elapsedTime * 10) > 0;
+  state.cars.forEach((car) => {
+    const data = car.userData;
+    data.indicators.forEach(({ side, material }) => {
+      material.emissiveIntensity = data.changingLane && data.indicatorSide === side && blinkOn ? 1.5 : 0;
+    });
+  });
+}
+
+function updateYieldingSpeeds() {
+  state.cars.forEach((car) => {
+    car.userData.targetSpeed = car.userData.baseSpeed;
+  });
+
+  state.cars.forEach((mergingCar) => {
+    const merge = mergingCar.userData;
+    if (!merge.changingLane || merge.targetLane === null) return;
+
+    merge.targetSpeed = merge.baseSpeed * 0.62;
+    const targetLane = state.lanes[merge.targetLane];
+    targetLane.cars.forEach((other) => {
+      if (other === mergingCar) return;
+      if (circularDistance(merge.progress, other.userData.progress) < 0.13) {
+        other.userData.targetSpeed = Math.min(other.userData.targetSpeed, other.userData.baseSpeed * 0.48);
+      }
+    });
+  });
+}
+
+function easeTrafficSpeeds(delta) {
+  state.cars.forEach((car) => {
+    const data = car.userData;
+    data.speed = THREE.MathUtils.lerp(data.speed, data.targetSpeed, Math.min(delta * 3.4, 1));
+  });
 }
 
 function enforceLaneSpacing(lane) {
@@ -535,6 +681,30 @@ function enforceLaneSpacing(lane) {
       next.progress = (next.progress + correction) % 1;
       current.car.userData.progress = current.progress;
       next.car.userData.progress = next.progress;
+    }
+  }
+}
+
+function enforceTrafficClearance() {
+  const minProgressGap = 0.074;
+  for (let i = 0; i < state.cars.length; i += 1) {
+    for (let j = i + 1; j < state.cars.length; j += 1) {
+      const a = state.cars[i];
+      const b = state.cars[j];
+      const ad = a.userData;
+      const bd = b.userData;
+      if (ad.dir !== bd.dir) continue;
+      if (Math.abs((ad.currentZ ?? ad.z) - (bd.currentZ ?? bd.z)) > 7.4) continue;
+
+      const gap = circularDistance(ad.progress, bd.progress);
+      if (gap >= minProgressGap) continue;
+
+      const push = (minProgressGap - gap) * 0.5;
+      const sign = signedProgressDelta(ad.progress, bd.progress) >= 0 ? 1 : -1;
+      ad.progress = (ad.progress + push * sign + 1) % 1;
+      bd.progress = (bd.progress - push * sign + 1) % 1;
+      ad.speed = Math.min(ad.speed, ad.baseSpeed * 0.45);
+      bd.speed = Math.min(bd.speed, bd.baseSpeed * 0.45);
     }
   }
 }
@@ -715,11 +885,17 @@ function applySetting(setting) {
 }
 
 function updateTraffic(delta) {
+  state.cars.forEach((car) => updateLaneChangeIntent(car, delta));
+  updateYieldingSpeeds();
+  easeTrafficSpeeds(delta);
   state.cars.forEach((car) => {
     const data = car.userData;
     data.progress = (data.progress + delta * data.speed * state.trafficSpeed * data.dir) % 1;
   });
+  state.cars.forEach((car) => updateLaneChangeMotion(car, delta));
   state.lanes.forEach(enforceLaneSpacing);
+  enforceTrafficClearance();
+  updateTurnIndicators();
   state.cars.forEach((car) => updateCarPosition(car, 0));
 }
 
