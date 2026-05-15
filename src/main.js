@@ -60,6 +60,7 @@ const state = {
   leaves: null,
   fogBank: [],
   trees: [],
+  guests: [],
   lamps: [],
   bridgeLights: [],
   water: null,
@@ -110,6 +111,7 @@ const mats = {
   cliff: new THREE.MeshStandardMaterial({ color: 0x7d7568, roughness: 0.92 }),
   asphalt: new THREE.MeshStandardMaterial({ color: 0x1f2224, roughness: 0.8 }),
   black: new THREE.MeshStandardMaterial({ color: 0x08090a, roughness: 0.55 }),
+  skin: new THREE.MeshStandardMaterial({ color: 0xd6a074, roughness: 0.62 }),
   glass: new THREE.MeshStandardMaterial({
     color: 0x8ed6f4,
     roughness: 0.05,
@@ -169,6 +171,7 @@ function createWorld() {
   createApproachRoad(220, -14, 95, -0.22);
   createCitySkyline();
   createTrees();
+  createPeople();
   createFog();
   createWeather();
 }
@@ -752,6 +755,99 @@ function createTrees() {
   });
 }
 
+function createPerson(config) {
+  const group = new THREE.Group();
+  const shirt = new THREE.MeshStandardMaterial({ color: config.shirt, roughness: 0.7 });
+  const pants = new THREE.MeshStandardMaterial({ color: config.pants, roughness: 0.74 });
+  const hat = new THREE.MeshStandardMaterial({ color: config.hat, roughness: 0.66 });
+
+  const body = makeMesh(
+    new THREE.CylinderGeometry(0.72, 0.88, 2.25, 10),
+    shirt,
+    new THREE.Vector3(0, 2.35, 0),
+  );
+  const head = makeMesh(
+    new THREE.SphereGeometry(0.58, 14, 10),
+    mats.skin,
+    new THREE.Vector3(0, 3.82, 0),
+  );
+  const brim = makeMesh(
+    new THREE.CylinderGeometry(0.72, 0.72, 0.1, 16),
+    hat,
+    new THREE.Vector3(0, 4.35, 0),
+  );
+  const cap = makeMesh(
+    new THREE.SphereGeometry(0.48, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.54),
+    hat,
+    new THREE.Vector3(0, 4.37, 0),
+  );
+
+  [-0.34, 0.34].forEach((x, index) => {
+    const leg = makeMesh(
+      new THREE.CylinderGeometry(0.18, 0.2, 1.6, 8),
+      pants,
+      new THREE.Vector3(x, 0.95, index % 2 ? 0.06 : -0.06),
+    );
+    leg.rotation.x = config.walking ? (index % 2 ? -0.2 : 0.2) : 0;
+    group.add(leg);
+  });
+
+  [-0.88, 0.88].forEach((x, index) => {
+    const arm = makeMesh(
+      new THREE.CylinderGeometry(0.14, 0.16, 1.45, 8),
+      mats.skin,
+      new THREE.Vector3(x, 2.48, 0),
+    );
+    arm.rotation.z = x > 0 ? -0.28 : 0.28;
+    arm.rotation.x = config.walking ? (index % 2 ? 0.28 : -0.28) : 0;
+    group.add(arm);
+  });
+
+  group.add(body, head, brim, cap);
+  group.position.set(config.x, 3.92, config.z);
+  group.rotation.y = config.rotation;
+  group.scale.setScalar(config.scale);
+  group.userData = {
+    baseY: group.position.y,
+    phase: config.phase,
+    walking: config.walking,
+  };
+  state.guests.push(group);
+  root.add(group);
+}
+
+function createPeople() {
+  const palette = [
+    { shirt: 0xf2c94c, pants: 0x2f4050, hat: 0xffffff },
+    { shirt: 0x2f80ed, pants: 0x1e2630, hat: 0xff6b6b },
+    { shirt: 0xeb5757, pants: 0x23395d, hat: 0xf2994a },
+    { shirt: 0x27ae60, pants: 0x293241, hat: 0xf7f2e2 },
+    { shirt: 0xbb6bd9, pants: 0x30323d, hat: 0x56ccf2 },
+  ];
+  const guestSpots = [
+    [-236, 46, 0.8, 0.92, true], [-228, 60, 1.2, 0.86, true],
+    [-214, 41, 2.4, 0.9, false], [-205, 55, -0.6, 0.82, true],
+    [-192, 30, -1.1, 0.88, false], [-184, 47, 2.9, 0.84, true],
+    [-172, 66, -2.5, 0.9, false], [-159, 49, -0.2, 0.86, true],
+    [154, -28, 2.2, 0.9, true], [166, -42, -0.4, 0.84, false],
+    [180, -26, -2.8, 0.88, true], [194, -48, 1.5, 0.86, true],
+    [206, -31, 0.5, 0.92, false], [218, -61, -1.8, 0.84, true],
+    [229, -44, 2.6, 0.88, false], [238, -67, -0.8, 0.82, true],
+  ];
+
+  guestSpots.forEach(([x, z, rotation, scale, walking], index) => {
+    createPerson({
+      x,
+      z,
+      rotation,
+      scale,
+      walking,
+      phase: index * 0.7,
+      ...palette[index % palette.length],
+    });
+  });
+}
+
 function createFog() {
   const fogMat = new THREE.MeshStandardMaterial({
     color: 0xe8f3f6,
@@ -1051,6 +1147,12 @@ function updateEnvironment(delta) {
 
   updateWeather(state.snow, delta, 18, 5, 125, 2.2);
   updateWeather(state.leaves, delta, 10, 8, 92, 7.5);
+
+  state.guests.forEach((guest) => {
+    const sway = Math.sin(time * 2 + guest.userData.phase);
+    guest.position.y = guest.userData.baseY + (guest.userData.walking ? Math.abs(sway) * 0.08 : sway * 0.025);
+    guest.rotation.z = sway * (guest.userData.walking ? 0.025 : 0.012);
+  });
 }
 
 function updateCamera() {
