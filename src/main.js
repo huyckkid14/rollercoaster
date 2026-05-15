@@ -60,6 +60,7 @@ const world = {
     radius: 2.55,
   },
   bumperCars: [],
+  guests: [],
   trees: [],
   lamps: [],
   snow: null,
@@ -111,6 +112,7 @@ const materials = {
   }),
   white: new THREE.MeshStandardMaterial({ color: 0xf3fbff, roughness: 0.55 }),
   black: new THREE.MeshStandardMaterial({ color: 0x101419, roughness: 0.58 }),
+  skin: new THREE.MeshStandardMaterial({ color: 0xd7a174, roughness: 0.62 }),
   glass: new THREE.MeshStandardMaterial({
     color: 0x91d9ff,
     roughness: 0.08,
@@ -486,6 +488,81 @@ function createParkBuildings() {
   addBuilding(-54, 35, 22, 10, 7, materials.wood, materials.red);
 }
 
+function createPerson({ x, z, rotation, scale, shirt, pants, hat, walking }) {
+  const guest = new THREE.Group();
+  const shirtMaterial = new THREE.MeshStandardMaterial({ color: shirt, roughness: 0.72 });
+  const pantsMaterial = new THREE.MeshStandardMaterial({ color: pants, roughness: 0.76 });
+  const hatMaterial = new THREE.MeshStandardMaterial({ color: hat, roughness: 0.64 });
+
+  guest.add(mesh(new THREE.CylinderGeometry(0.48, 0.58, 1.65, 10), shirtMaterial, new THREE.Vector3(0, 2.15, 0)));
+  guest.add(mesh(new THREE.SphereGeometry(0.4, 14, 10), materials.skin, new THREE.Vector3(0, 3.18, 0)));
+  guest.add(mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.09, 16), hatMaterial, new THREE.Vector3(0, 3.55, 0)));
+  guest.add(mesh(new THREE.SphereGeometry(0.34, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.54), hatMaterial, new THREE.Vector3(0, 3.58, 0)));
+
+  [-0.24, 0.24].forEach((legX, index) => {
+    const leg = mesh(
+      new THREE.CylinderGeometry(0.12, 0.14, 1.22, 8),
+      pantsMaterial,
+      new THREE.Vector3(legX, 0.9, index % 2 ? 0.05 : -0.05),
+    );
+    leg.rotation.x = walking ? (index % 2 ? -0.22 : 0.22) : 0;
+    guest.add(leg);
+  });
+
+  [-0.64, 0.64].forEach((armX, index) => {
+    const arm = mesh(
+      new THREE.CylinderGeometry(0.1, 0.11, 1.08, 8),
+      materials.skin,
+      new THREE.Vector3(armX, 2.22, 0),
+    );
+    arm.rotation.z = armX > 0 ? -0.25 : 0.25;
+    arm.rotation.x = walking ? (index % 2 ? 0.28 : -0.28) : 0;
+    guest.add(arm);
+  });
+
+  guest.position.set(x, 1.62, z);
+  guest.rotation.y = rotation;
+  guest.scale.setScalar(scale);
+  guest.userData = {
+    baseY: guest.position.y,
+    phase: world.guests.length * 0.72,
+    walking,
+  };
+  world.guests.push(guest);
+  root.add(guest);
+}
+
+function createPeople() {
+  const outfits = [
+    { shirt: 0xf2cb37, pants: 0x223044, hat: 0xfff2c8 },
+    { shirt: 0x1262c7, pants: 0x202733, hat: 0xf05b4f },
+    { shirt: 0xc62933, pants: 0x283f63, hat: 0xf2cb37 },
+    { shirt: 0x26a65b, pants: 0x2d333c, hat: 0xf3fbff },
+    { shirt: 0x9b5de5, pants: 0x263238, hat: 0x91d9ff },
+  ];
+  const positions = [
+    [-61, -31, 0.3, 0.88, true], [-52, -27, 1.1, 0.82, true],
+    [-42, -25, -0.2, 0.86, false], [-33, -23, 2.4, 0.84, true],
+    [-27, 31, -1.4, 0.86, false], [-15, 34, 0.7, 0.82, true],
+    [-3, 35, 2.8, 0.88, true], [12, 32, -0.8, 0.84, false],
+    [30, -24, 1.9, 0.88, true], [39, -15, 0.3, 0.82, false],
+    [47, -7, -2.2, 0.86, true], [55, -20, -0.4, 0.84, true],
+    [-57, 40, 2.5, 0.86, false], [58, 4, -1.1, 0.82, true],
+    [18, 15, 0.9, 0.84, false], [-7, 12, -2.7, 0.82, true],
+  ];
+
+  positions.forEach(([x, z, rotation, scale, walking], index) => {
+    createPerson({
+      x,
+      z,
+      rotation,
+      scale,
+      walking,
+      ...outfits[index % outfits.length],
+    });
+  });
+}
+
 function addBuilding(x, z, width, depth, height, wallMaterial, roofMaterial) {
   const building = new THREE.Group();
   building.add(mesh(new THREE.BoxGeometry(width, height, depth), wallMaterial, new THREE.Vector3(0, height / 2, 0)));
@@ -678,6 +755,12 @@ function updateEnvironment(delta) {
   if (world.leaves.visible) {
     driftParticles(world.leaves, delta, -8, 70, 1.7);
   }
+
+  world.guests.forEach((guest) => {
+    const sway = Math.sin(time * 2.1 + guest.userData.phase);
+    guest.position.y = guest.userData.baseY + (guest.userData.walking ? Math.abs(sway) * 0.055 : sway * 0.018);
+    guest.rotation.z = sway * (guest.userData.walking ? 0.025 : 0.01);
+  });
 }
 
 function driftParticles(points, delta, bottom, top, sway) {
@@ -895,6 +978,7 @@ createCoaster();
 createFerrisWheel();
 createBumperCars();
 createParkBuildings();
+createPeople();
 createTreesAndLamps();
 createWeatherParticles();
 applySetting("day");
